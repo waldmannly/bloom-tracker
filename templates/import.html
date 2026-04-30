@@ -1,0 +1,92 @@
+{{define "title"}}Import Periods — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="dashboard">
+
+    <div class="page-header">
+        <h1>📥 Import Past Periods</h1>
+        <p>Quickly add your period history — one entry per line</p>
+    </div>
+
+    {{if .Errors}}
+    <div class="import-errors">
+        <h3>⚠️ Some entries had issues:</h3>
+        <ul>
+            {{range .Errors}}
+            <li>{{.}}</li>
+            {{end}}
+        </ul>
+    </div>
+    {{end}}
+
+    <div class="card">
+        <form method="POST" action="/import">
+            <div class="form-group">
+                <label for="periods">Enter period dates (one per line):</label>
+                <textarea id="periods" name="periods" class="import-textarea" rows="12" placeholder="Supported formats:
+
+2024-01-15 to 2024-01-20
+2024-02-12 - 2024-02-17
+2024-03-11, 2024-03-16
+2024-04-08
+
+# Lines starting with # are ignored
+# Just a start date = open-ended period
+# Start to End = completed period"></textarea>
+            </div>
+
+            <div class="import-help">
+                <h3>📝 Format Guide</h3>
+                <div class="format-examples">
+                    <div class="format-row">
+                        <code>2024-01-15 to 2024-01-20</code>
+                        <span>Period from Jan 15 to Jan 20</span>
+                    </div>
+                    <div class="format-row">
+                        <code>2024-02-12 - 2024-02-17</code>
+                        <span>Also works with dashes</span>
+                    </div>
+                    <div class="format-row">
+                        <code>01/15/2024, 01/20/2024</code>
+                        <span>US date format with commas</span>
+                    </div>
+                    <div class="format-row">
+                        <code>2024-03-11</code>
+                        <span>Start date only (mark end later)</span>
+                    </div>
+                    <div class="format-row">
+                        <code>Jan 15, 2024 to Jan 20, 2024</code>
+                        <span>Written-out dates work too</span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:1rem;">📥 Import Periods</button>
+        </form>
+        <a href="/import-template" class="btn btn-secondary" style="width:100%;margin-top:0.5rem;text-align:center;display:block;">📄 Download Import Template</a>
+    </div>
+
+    {{if .History}}
+    <div class="section">
+        <h2>📋 All Logged Periods ({{len .History}})</h2>
+        <div class="history-list">
+            {{range .History}}
+            <div class="history-item">
+                <div class="history-dates">
+                    <span>🩸 {{formatDate .StartDate}}</span>
+                    {{if .EndDate}}
+                    <span class="history-arrow">→</span>
+                    <span>{{formatDate .EndDate}}</span>
+                    {{else}}
+                    <span class="history-badge active">ongoing</span>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+</div>
+{{end}}
+{{end}}

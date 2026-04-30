@@ -1,0 +1,31 @@
+{{define "title"}}Join as Partner — Bloom{{end}}
+{{define "content"}}
+<div class="auth-page">
+    <div class="auth-card">
+        <h1>💑 Join as Partner</h1>
+        <p class="auth-subtitle">Enter the invite code your partner shared with you to see their cycle info and tips.</p>
+
+        <form method="POST" action="/partner/join" class="auth-form">
+            <div class="form-group">
+                <label for="code">Invite Code</label>
+                <input type="text" id="code" name="code" required placeholder="e.g. A1B2C3" maxlength="6" class="invite-input" autofocus>
+            </div>
+            <div class="form-group">
+                <label for="name">Your Name</label>
+                <input type="text" id="name" name="name" required placeholder="Your name">
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required minlength="8" placeholder="At least 8 characters">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create Partner Account</button>
+        </form>
+
+        <p class="auth-footer">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+</div>
+{{end}}

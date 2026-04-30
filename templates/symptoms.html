@@ -1,0 +1,121 @@
+{{define "title"}}Symptoms — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="page-header">
+    <h1>📝 Symptom Tracker</h1>
+    <p>Log how you're feeling. Select multiple symptoms at once — tracking helps you spot patterns across your cycle.</p>
+</div>
+
+<div class="card">
+    <form method="POST" action="/symptoms" class="symptom-form" id="symptom-form">
+        <div class="form-group">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" value="{{formatDateInput .Today}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Category</label>
+            <div class="pill-group">
+                <button type="button" class="pill active" data-category="physical" onclick="selectCategory(this)">💪 Physical</button>
+                <button type="button" class="pill" data-category="emotional" onclick="selectCategory(this)">💜 Emotional</button>
+                <button type="button" class="pill" data-category="flow" onclick="selectCategory(this)">💧 Flow</button>
+                <button type="button" class="pill" data-category="other" onclick="selectCategory(this)">📌 Other</button>
+            </div>
+            <input type="hidden" name="category" id="category-input" value="physical">
+        </div>
+
+        <div class="form-group">
+            <label>Symptoms <span class="optional">(select one or more)</span></label>
+            <div id="symptom-groups">
+                <div class="pill-group symptom-group" data-category="physical">
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Cramps</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Headache</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Bloating</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Fatigue</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Back Pain</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Breast Tenderness</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Nausea</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Acne</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Dizziness</button>
+                </div>
+                <div class="pill-group symptom-group" data-category="emotional" style="display:none">
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Mood Swings</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Irritability</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Anxiety</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Sadness</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Happy</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Brain Fog</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Low Motivation</button>
+                </div>
+                <div class="pill-group symptom-group" data-category="flow" style="display:none">
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Heavy Flow</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Medium Flow</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Light Flow</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Spotting</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Clots</button>
+                </div>
+                <div class="pill-group symptom-group" data-category="other" style="display:none">
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Cravings</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Insomnia</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Hot Flashes</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Increased Appetite</button>
+                    <button type="button" class="pill sym" onclick="toggleSymptom(this)">Low Appetite</button>
+                </div>
+            </div>
+            <div class="custom-symptom-row">
+                <button type="button" class="pill pill-add" onclick="toggleCustomSymptom()">+ Custom</button>
+                <input type="text" name="custom_symptom" id="custom-symptom-input" class="custom-symptom-input" placeholder="Type your own symptom..." style="display:none" maxlength="50">
+            </div>
+            <input type="hidden" name="symptoms" id="symptoms-input">
+            <div id="selected-symptoms-display" class="selected-symptoms" style="display:none">
+                <strong>Selected:</strong> <span id="selected-list"></span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="severity">Severity <span class="optional">(applies to all selected)</span></label>
+            <div class="severity-control">
+                <input type="range" id="severity" name="severity" min="1" max="5" value="3">
+                <div class="severity-labels">
+                    <span>Mild</span>
+                    <span>Moderate</span>
+                    <span>Severe</span>
+                </div>
+                <div class="severity-display" id="severity-display">●●●○○</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes <span class="optional">(optional)</span></label>
+            <textarea id="notes" name="notes" rows="2" placeholder="Anything else to note..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Log Symptoms</button>
+    </form>
+</div>
+
+{{if .TodaySymptoms}}
+<div class="section">
+    <h2>Today's Symptoms</h2>
+    <div class="symptom-list">
+        {{range .TodaySymptoms}}
+        <div class="symptom-row">
+            <div class="symptom-info">
+                <span class="symptom-badge cat-{{.Category}}">{{.Category}}</span>
+                <span class="symptom-name">{{.Name}}</span>
+                <span class="severity-dots">
+                    {{range seq .Severity}}<span class="dot filled">●</span>{{end}}{{range seq (sub 5 .Severity)}}<span class="dot">○</span>{{end}}
+                </span>
+            </div>
+            {{if .Notes}}<p class="symptom-notes">{{.Notes}}</p>{{end}}
+            <form action="/delete-symptom" method="POST" class="inline">
+                <input type="hidden" name="symptom_id" value="{{.ID}}">
+                <button type="submit" class="btn btn-xs btn-danger" title="Delete">✕</button>
+            </form>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}
+{{end}}
+{{end}}

@@ -1,0 +1,211 @@
+{{define "title"}}Trends — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="dashboard">
+
+    {{if not .HasData}}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h2>Not Enough Data Yet</h2>
+        <p>Log at least two periods to start seeing cycle trends. The more data you log, the better your insights!</p>
+        <a href="/log-period" class="btn btn-primary btn-lg">Log a Period</a>
+    </div>
+    {{else}}
+
+    <div class="page-header">
+        <h1>📊 Your Trends</h1>
+        <p>Patterns and insights from your cycle history</p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{printf "%.1f" .AvgCycleLen}}</div>
+            <div class="stat-label">avg cycle length</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{.TotalPeriods}}</div>
+            <div class="stat-label">periods logged</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{.TotalSymptoms}}</div>
+            <div class="stat-label">symptoms logged</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{len .CycleTrends}}</div>
+            <div class="stat-label">cycles tracked</div>
+        </div>
+    </div>
+
+    <!-- Cycle Length Chart -->
+    {{if .CycleTrends}}
+    <div class="section">
+        <h2>📏 Cycle Length Over Time</h2>
+        <p class="section-subtitle">How your cycle length varies month to month</p>
+        <div class="chart-card">
+            <div class="bar-chart">
+                {{range .CycleTrends}}
+                <div class="bar-col">
+                    <div class="bar-value">{{.CycleLength}}d</div>
+                    <div class="bar-track">
+                        <div class="bar-fill cycle-bar" style="height: {{printf "%.0f" (multiply (divide .CycleLength $.Data.MaxCycleLen) 100)}}%"></div>
+                    </div>
+                    <div class="bar-label">{{.MonthLabel}}</div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Period Duration Chart -->
+    {{if .CycleTrends}}
+    <div class="section">
+        <h2>🩸 Period Duration</h2>
+        <p class="section-subtitle">How many days each period lasted</p>
+        <div class="chart-card">
+            <div class="bar-chart">
+                {{range .CycleTrends}}
+                {{if .PeriodDays}}
+                <div class="bar-col">
+                    <div class="bar-value">{{.PeriodDays}}d</div>
+                    <div class="bar-track">
+                        <div class="bar-fill period-bar" style="height: {{printf "%.0f" (multiply (divide .PeriodDays 10) 100)}}%"></div>
+                    </div>
+                    <div class="bar-label">{{.MonthLabel}}</div>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Top Symptoms -->
+    {{if .TopSymptoms}}
+    <div class="section">
+        <h2>📝 Most Common Symptoms</h2>
+        <p class="section-subtitle">Your most frequently logged symptoms</p>
+        <div class="symptom-trend-list">
+            {{range .TopSymptoms}}
+            <div class="symptom-trend-row">
+                <div class="symptom-trend-info">
+                    <span class="symptom-badge cat-{{.Category}}">{{.Category}}</span>
+                    <span class="symptom-trend-name">{{.Name}}</span>
+                </div>
+                <div class="symptom-trend-stats">
+                    <span class="trend-count">{{.Count}}×</span>
+                    <div class="trend-bar-track">
+                        <div class="trend-bar-fill" style="width: {{.Count}}0%"></div>
+                    </div>
+                    <span class="trend-avg">avg {{printf "%.1f" .AvgSev}}/5</span>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Monthly Overview -->
+    {{if .MonthSummaries}}
+    <div class="section">
+        <h2>📅 Month by Month</h2>
+        <p class="section-subtitle">Activity over the last 12 months</p>
+        <div class="month-grid">
+            {{range .MonthSummaries}}
+            <div class="month-cell {{if .PeriodCount}}has-data{{end}}">
+                <div class="month-name">{{.Month}}</div>
+                <div class="month-year">{{.Year}}</div>
+                {{if .PeriodCount}}
+                <div class="month-stat">🩸 {{.PeriodCount}}</div>
+                {{end}}
+                {{if .SymptomCount}}
+                <div class="month-stat">📝 {{.SymptomCount}}</div>
+                {{end}}
+                {{if .TopSymptom}}
+                <div class="month-top">{{.TopSymptom}}</div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- BBT Temperature Chart -->
+    {{if .BBTReadings}}
+    <div class="section">
+        <h2>🌡️ Basal Body Temperature</h2>
+        <p class="section-subtitle">Temperature pattern over the last 60 days — look for the post-ovulation rise</p>
+        <div class="chart-card">
+            <div class="bbt-chart">
+                <div class="bbt-y-axis">
+                    <span>37.5°</span>
+                    <span>37.0°</span>
+                    <span>36.5°</span>
+                    <span>36.0°</span>
+                </div>
+                <div class="bbt-plot">
+                    {{range .BBTReadings}}
+                    {{if gt .BasalTemp 0.0}}
+                    <div class="bbt-point" title="{{formatDate .Date}}: {{formatTemp .BasalTemp}}{{if .CervicalMucus}} | CM: {{.CervicalMucus}}{{end}}" style="bottom: {{printf "%.1f" (tempPercent .BasalTemp)}}%">
+                        <span class="bbt-dot {{if .CervicalMucus}}mucus-{{.CervicalMucus}}{{end}}"></span>
+                        <span class="bbt-date">{{formatDateShort .Date}}</span>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+            </div>
+            <div class="bbt-legend">
+                <span class="bbt-legend-item">☀️ Dry</span>
+                <span class="bbt-legend-item">••• Sticky</span>
+                <span class="bbt-legend-item">☁️ Creamy</span>
+                <span class="bbt-legend-item">💧 Egg White</span>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Symptom-Phase Correlation -->
+    {{if .PhaseCorrelations}}
+    <div class="section">
+        <h2>🔬 Symptom × Phase Correlation</h2>
+        <p class="section-subtitle">Which symptoms appear in which cycle phases</p>
+        <div class="correlation-grid">
+            <div class="correlation-header">
+                <div class="corr-label">Symptom</div>
+                <div class="corr-phase">🌺 Menstruation</div>
+                <div class="corr-phase">🌱 Follicular</div>
+                <div class="corr-phase">🌸 Ovulation</div>
+                <div class="corr-phase">🌙 Luteal</div>
+            </div>
+            {{$correlations := .PhaseCorrelations}}
+            {{range .TopSymptoms}}
+            {{$symptom := .Name}}
+            <div class="correlation-row">
+                <div class="corr-label">
+                    <span class="symptom-badge cat-{{.Category}}">{{$symptom}}</span>
+                </div>
+                {{range $phase := (seq 4)}}
+                {{$phaseName := ""}}
+                {{if eq $phase 0}}{{$phaseName = "menstruation"}}{{end}}
+                {{if eq $phase 1}}{{$phaseName = "follicular"}}{{end}}
+                {{if eq $phase 2}}{{$phaseName = "ovulation"}}{{end}}
+                {{if eq $phase 3}}{{$phaseName = "luteal"}}{{end}}
+                <div class="corr-cell">
+                    {{range $correlations}}
+                    {{if and (eq .Symptom $symptom) (eq .Phase $phaseName)}}
+                    <span class="corr-dot corr-level-{{.Count}}" title="{{.Count}}× (avg {{printf "%.1f" .AvgSev}}/5)">{{.Count}}</span>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    {{end}}
+</div>
+{{end}}
+{{end}}

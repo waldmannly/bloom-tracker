@@ -1,0 +1,44 @@
+{{define "title"}}Calendar — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="page-header">
+    <h1>📅 Cycle Calendar</h1>
+</div>
+
+<div class="calendar-nav">
+    <a href="/calendar?year={{.PrevYear}}&month={{.PrevMonth}}" class="btn btn-outline">← Prev</a>
+    <h2 class="calendar-title">{{.MonthName}}</h2>
+    <a href="/calendar?year={{.NextYear}}&month={{.NextMonth}}" class="btn btn-outline">Next →</a>
+</div>
+
+<div class="calendar-card">
+    <div class="calendar-legend">
+        <span class="legend-item"><span class="legend-dot period"></span> Period</span>
+        <span class="legend-item"><span class="legend-dot predicted"></span> Predicted</span>
+        <span class="legend-item"><span class="legend-dot ovulation"></span> Ovulation</span>
+        <span class="legend-item"><span class="legend-dot fertile"></span> Fertile</span>
+        <span class="legend-item"><span class="legend-dot symptom"></span> Symptoms</span>
+    </div>
+
+    <table class="calendar-table">
+        <thead>
+            <tr>
+                {{range seq 7}}<th>{{dayName .}}</th>{{end}}
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Weeks}}
+            <tr>
+                {{range .}}
+                <td class="cal-day{{if not .IsCurrentMonth}} other-month{{end}}{{if .IsToday}} today{{end}}{{if .IsPeriod}} period{{end}}{{if .IsPredicted}} predicted{{end}}{{if .IsOvulation}} ovulation{{end}}{{if .IsFertile}} fertile{{end}}">
+                    <span class="day-num">{{.Day}}</span>
+                    {{if .HasSymptoms}}<span class="day-badge">{{.SymptomCount}}</span>{{end}}
+                </td>
+                {{end}}
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,87 @@
+{{define "title"}}Journal — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="dashboard">
+
+    <div class="page-header">
+        <h1>📔 Journal</h1>
+        <p>A private space for your thoughts, feelings, and reflections.</p>
+    </div>
+
+    <!-- New Entry -->
+    <div class="card journal-form-card">
+        <h2>✏️ New Entry</h2>
+        <form method="POST" action="/journal" class="form-stack">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="journal_date">Date</label>
+                    <input type="date" id="journal_date" name="date" value="{{formatDateInput .Today}}" required>
+                </div>
+                <div class="form-group">
+                    <label>How are you feeling?</label>
+                    <div class="mood-picker">
+                        <input type="radio" name="mood" value="😊" id="mood1" class="mood-radio">
+                        <label for="mood1" class="mood-option">😊</label>
+                        <input type="radio" name="mood" value="😌" id="mood2" class="mood-radio">
+                        <label for="mood2" class="mood-option">😌</label>
+                        <input type="radio" name="mood" value="😐" id="mood3" class="mood-radio" checked>
+                        <label for="mood3" class="mood-option">😐</label>
+                        <input type="radio" name="mood" value="😔" id="mood4" class="mood-radio">
+                        <label for="mood4" class="mood-option">😔</label>
+                        <input type="radio" name="mood" value="😢" id="mood5" class="mood-radio">
+                        <label for="mood5" class="mood-option">😢</label>
+                        <input type="radio" name="mood" value="😤" id="mood6" class="mood-radio">
+                        <label for="mood6" class="mood-option">😤</label>
+                        <input type="radio" name="mood" value="🥰" id="mood7" class="mood-radio">
+                        <label for="mood7" class="mood-option">🥰</label>
+                        <input type="radio" name="mood" value="💪" id="mood8" class="mood-radio">
+                        <label for="mood8" class="mood-option">💪</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="journal_title">Title <span class="form-hint">(optional)</span></label>
+                <input type="text" id="journal_title" name="title" placeholder="What's on your mind?" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label for="journal_content">Write freely...</label>
+                <textarea id="journal_content" name="content" rows="6" placeholder="How are you feeling today? What happened? What do you need? No one sees this but you. 💛"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Entry 📔</button>
+        </form>
+    </div>
+
+    <!-- Past Entries -->
+    {{if .Entries}}
+    <div class="section">
+        <h2>📖 Past Entries</h2>
+        <div class="journal-timeline">
+            {{range .Entries}}
+            <div class="journal-entry">
+                <div class="journal-entry-header">
+                    <div class="journal-meta">
+                        {{if .MoodEmoji}}<span class="journal-mood">{{.MoodEmoji}}</span>{{end}}
+                        <span class="journal-date">{{formatDate .Date}}</span>
+                    </div>
+                    <form method="POST" action="/delete-journal" style="display:inline;">
+                        <input type="hidden" name="entry_id" value="{{.ID}}">
+                        <button type="submit" class="btn-icon" title="Delete" onclick="return confirm('Delete this journal entry?')">🗑️</button>
+                    </form>
+                </div>
+                {{if .Title}}<h3 class="journal-title">{{.Title}}</h3>{{end}}
+                <p class="journal-content">{{.Content}}</p>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{else}}
+    <div class="empty-state">
+        <div class="empty-icon">📔</div>
+        <h2>Your journal is empty</h2>
+        <p>Start writing to track your thoughts and feelings over time. It's completely private — only you can see your entries.</p>
+    </div>
+    {{end}}
+
+</div>
+{{end}}
+{{end}}

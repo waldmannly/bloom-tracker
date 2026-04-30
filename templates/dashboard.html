@@ -1,0 +1,167 @@
+{{define "title"}}Dashboard — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="dashboard">
+
+    {{if not .HasPeriodData}}
+    <div class="empty-state">
+        <div class="empty-icon">🌸</div>
+        <h2>Welcome to Bloom!</h2>
+        <p>Log your first period to start seeing cycle predictions, phase tracking, and fertility info.</p>
+        <a href="/log-period" class="btn btn-primary btn-lg">Log Your First Period</a>
+    </div>
+    {{else}}
+
+    <!-- Phase Hero -->
+    <div class="phase-hero phase-{{.CycleInfo.PhaseColor}}">
+        <div class="phase-emoji">{{.CycleInfo.PhaseEmoji}}</div>
+        <h1>{{title .CycleInfo.Phase}} Phase</h1>
+        <p class="phase-desc">{{.CycleInfo.PhaseDescription}}</p>
+        <p class="phase-method-link"><a href="/methodology">How is this calculated? →</a></p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">Day {{.CycleInfo.CycleDay}}</div>
+            <div class="stat-label">of your cycle</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{.CycleInfo.DaysUntilPeriod}}</div>
+            <div class="stat-label">days until period</div>
+        </div>
+        {{if .ShowFertility}}
+        <div class="stat-card {{if .CycleInfo.IsInFertileWindow}}stat-fertile{{end}}">
+            <div class="stat-number">{{if .CycleInfo.IsInFertileWindow}}🌿 Yes{{else}}No{{end}}</div>
+            <div class="stat-label">fertile window</div>
+        </div>
+        {{end}}
+        <div class="stat-card">
+            <div class="stat-number">{{formatDate .CycleInfo.NextPeriodDate}}</div>
+            <div class="stat-label">next period</div>
+        </div>
+    </div>
+
+    <!-- Active Period -->
+    {{if .ActivePeriod}}
+    <div class="banner banner-period">
+        <div class="banner-text">
+            <span class="banner-icon">🩸</span>
+            Period started {{formatDate .ActivePeriod.StartDate}}
+        </div>
+        <form action="/end-period" method="POST">
+            <input type="hidden" name="period_id" value="{{.ActivePeriod.ID}}">
+            <button type="submit" class="btn btn-sm btn-white">Mark as Ended</button>
+        </form>
+    </div>
+    {{end}}
+
+    <!-- Smart Alerts -->
+    {{if .SmartAlerts}}
+    <div class="smart-alerts">
+        {{range .SmartAlerts}}
+        <div class="smart-alert alert-{{.Type}}">
+            <span class="alert-icon">{{.Icon}}</span>
+            <div class="alert-body">
+                <strong>{{.Title}}</strong>
+                <p>{{.Message}}</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <!-- Encouragement -->
+    <div class="encouragement-card phase-{{.CycleInfo.PhaseColor}}-soft">
+        <div class="encouragement-icon">💛</div>
+        <p class="encouragement-text">{{.CycleInfo.Encouragement}}</p>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="/log-period" class="btn btn-primary">🩸 Log Period</a>
+        <a href="/symptoms" class="btn btn-secondary">📝 Log Symptoms</a>
+        <a href="/calendar" class="btn btn-accent">📅 Calendar</a>
+    </div>
+
+    <!-- Wellness Tips -->
+    <div class="section wellness-section">
+        <h2>✨ Your Body This Phase</h2>
+        <div class="wellness-grid">
+            <div class="wellness-card wellness-exercise">
+                <div class="wellness-icon">🏃‍♀️</div>
+                <h3>Exercise</h3>
+                <p class="wellness-tip">{{.CycleInfo.Wellness.ExerciseTip}}</p>
+                <div class="wellness-tags">
+                    {{range .CycleInfo.Wellness.ExerciseExamples}}
+                    <span class="wellness-tag exercise-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+            <div class="wellness-card wellness-nutrition">
+                <div class="wellness-icon">🥗</div>
+                <h3>Nutrition</h3>
+                <p class="wellness-tip">{{.CycleInfo.Wellness.NutritionTip}}</p>
+                <div class="wellness-tags">
+                    {{range .CycleInfo.Wellness.FoodsToEat}}
+                    <span class="wellness-tag food-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+            <div class="wellness-card wellness-nutrients">
+                <div class="wellness-icon">💊</div>
+                <h3>Key Nutrients</h3>
+                <p class="wellness-tip">Focus on these nutrients during this phase:</p>
+                <div class="wellness-tags">
+                    {{range .CycleInfo.Wellness.KeyNutrients}}
+                    <span class="wellness-tag nutrient-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Predictions -->
+    {{if .Predictions}}
+    <div class="section">
+        <h2>📅 Upcoming Predictions</h2>
+        <div class="predictions-grid">
+            {{range .Predictions}}
+            <div class="prediction-card">
+                <div class="prediction-header">🩸 Period</div>
+                <div class="prediction-dates">{{formatDate .PeriodStart}} — {{formatDate .PeriodEnd}}</div>
+                {{if $.Data.ShowFertility}}
+                <div class="prediction-details">
+                    <span>🌸 Ovulation: {{formatDate .OvulationDate}}</span>
+                    <span>🌿 Fertile: {{formatDate .FertileStart}} — {{formatDate .FertileEnd}}</span>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Recent Symptoms -->
+    {{if .RecentSymptoms}}
+    <div class="section">
+        <h2>📝 Recent Symptoms</h2>
+        <div class="symptom-list">
+            {{range .RecentSymptoms}}
+            <div class="symptom-row">
+                <span class="symptom-date">{{formatDateShort .Date}}</span>
+                <span class="symptom-badge cat-{{.Category}}">{{.Category}}</span>
+                <span class="symptom-name">{{.Name}}</span>
+                <span class="severity-dots">
+                    {{range seq .Severity}}<span class="dot filled">●</span>{{end}}{{range seq (sub 5 .Severity)}}<span class="dot">○</span>{{end}}
+                </span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    {{end}}
+</div>
+{{end}}
+{{end}}

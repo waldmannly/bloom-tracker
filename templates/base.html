@@ -1,0 +1,61 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}Bloom — Period Tracker{{end}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+</head>
+<body>
+    {{if .IsLoggedIn}}
+    <nav class="main-nav">
+        <div class="nav-inner">
+            <a href="/dashboard" class="nav-brand">🌸 Bloom</a>
+            <div class="nav-links" id="nav-links">
+                {{if .IsPartner}}
+                <a href="/dashboard">Dashboard</a>
+                {{else}}
+                <a href="/dashboard">Dashboard</a>
+                <a href="/log-period">Log Period</a>
+                <a href="/symptoms">Symptoms</a>
+                <a href="/daily-log">Daily Log</a>
+                <a href="/journal">Journal</a>
+                <a href="/calendar">Calendar</a>
+                <a href="/trends">Trends</a>
+                <a href="/import">Import</a>
+                {{end}}
+                <a href="/settings">Settings</a>
+                <a href="/logout" class="nav-logout">Log Out</a>
+            </div>
+            <button class="nav-toggle" onclick="document.getElementById('nav-links').classList.toggle('show')">☰</button>
+        </div>
+    </nav>
+    {{else}}
+    <nav class="main-nav public-nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">🌸 Bloom</a>
+            <div class="nav-links">
+                <a href="/login">Log In</a>
+                <a href="/register" class="btn btn-sm btn-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <main class="container">
+        {{if .Flash}}
+        <div class="flash flash-{{.FlashType}}" id="flash">{{.Flash}}</div>
+        {{end}}
+        {{block "content" .}}{{end}}
+    </main>
+
+    <footer class="main-footer">
+        <p>🌸 Bloom — Open-source period tracking. No ads. No tracking. No data selling. <a href="/privacy" style="color:inherit;text-decoration:underline;">Privacy details</a>.</p>
+        <p class="footer-links"><a href="/privacy">Privacy Policy</a> · <a href="/methodology">How It Works</a></p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+{{end}}

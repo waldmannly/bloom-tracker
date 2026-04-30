@@ -1,0 +1,125 @@
+{{define "title"}}Partner Dashboard — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="dashboard partner-dashboard">
+
+    {{if not .HasPeriodData}}
+    <div class="empty-state">
+        <div class="empty-icon">💑</div>
+        <h2>Hey there!</h2>
+        <p>{{.PartnerName}} hasn't logged any period data yet. Once they do, you'll see cycle info, phase details, and tips on how to be supportive.</p>
+    </div>
+    {{else}}
+
+    <div class="partner-header">
+        <h1>💑 {{.PartnerName}}'s Cycle</h1>
+        <p>Here's what you need to know today</p>
+    </div>
+
+    <!-- Phase Hero -->
+    <div class="phase-hero phase-{{.CycleInfo.PhaseColor}}">
+        <div class="phase-emoji">{{.CycleInfo.PhaseEmoji}}</div>
+        <h1>{{title .CycleInfo.Phase}} Phase</h1>
+    </div>
+
+    <!-- Encouragement to share -->
+    <div class="encouragement-card phase-{{.CycleInfo.PhaseColor}}-soft">
+        <div class="encouragement-icon">💛</div>
+        <p class="encouragement-text">{{.CycleInfo.Encouragement}}</p>
+        <p class="encouragement-hint">Share this with her — it might make her day.</p>
+    </div>
+
+    <!-- Partner Tip -->
+    <div class="partner-tip">
+        <h2>💡 What She Needs From You</h2>
+        <p>{{.CycleInfo.PartnerTip}}</p>
+    </div>
+
+    <!-- Action Items -->
+    <div class="section">
+        <h2>✅ Things You Can Do Right Now</h2>
+        <div class="action-list">
+            {{range .CycleInfo.PartnerActions}}
+            <div class="action-item">
+                <span class="action-check">○</span>
+                <span>{{.}}</span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Treat Ideas -->
+    <div class="section">
+        <h2>🎁 Treat Ideas</h2>
+        <div class="treat-grid">
+            {{range .CycleInfo.TreatIdeas}}
+            <span class="treat-tag">{{.}}</span>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Wellness Awareness -->
+    <div class="section">
+        <h2>🍽️ How You Can Help</h2>
+        <div class="wellness-grid partner-wellness">
+            <div class="wellness-card wellness-nutrition">
+                <div class="wellness-icon">🥗</div>
+                <h3>Foods That Help Right Now</h3>
+                <div class="wellness-tags">
+                    {{range .CycleInfo.Wellness.FoodsToEat}}
+                    <span class="wellness-tag food-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+            <div class="wellness-card wellness-exercise">
+                <div class="wellness-icon">🏃‍♀️</div>
+                <h3>Good Activities Together</h3>
+                <div class="wellness-tags">
+                    {{range .CycleInfo.Wellness.ExerciseExamples}}
+                    <span class="wellness-tag exercise-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">Day {{.CycleInfo.CycleDay}}</div>
+            <div class="stat-label">of cycle</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{.CycleInfo.DaysUntilPeriod}}</div>
+            <div class="stat-label">days until period</div>
+        </div>
+        {{if .ShowFertility}}
+        <div class="stat-card {{if .CycleInfo.IsInFertileWindow}}stat-fertile{{end}}">
+            <div class="stat-number">{{if .CycleInfo.IsInFertileWindow}}🌿 Fertile{{else}}Not Fertile{{end}}</div>
+            <div class="stat-label">fertility status</div>
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Upcoming -->
+    {{if .Predictions}}
+    <div class="section">
+        <h2>📅 Coming Up</h2>
+        <div class="predictions-grid">
+            {{range .Predictions}}
+            <div class="prediction-card">
+                <div class="prediction-header">🩸 Next Period</div>
+                <div class="prediction-dates">{{formatDate .PeriodStart}} — {{formatDate .PeriodEnd}}</div>
+                <div class="prediction-details">
+                    <span>🌸 Ovulation: {{formatDate .OvulationDate}}</span>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    {{end}}
+</div>
+{{end}}
+{{end}}

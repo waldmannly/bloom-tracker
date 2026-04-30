@@ -1,0 +1,165 @@
+{{define "title"}}Settings — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="page-header">
+    <h1>⚙️ Settings</h1>
+</div>
+
+<div class="card">
+    <h2>Cycle Settings</h2>
+    <p class="card-desc">Adjust these to improve prediction accuracy.</p>
+    <form method="POST" action="/settings" class="form-stack">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="cycle_length">Average Cycle Length (days)</label>
+                <input type="number" id="cycle_length" name="cycle_length" value="{{.CycleLength}}" min="20" max="45" required>
+                <span class="form-hint">Most cycles are 24–35 days. Default is 28.</span>
+            </div>
+            <div class="form-group">
+                <label for="period_length">Average Period Length (days)</label>
+                <input type="number" id="period_length" name="period_length" value="{{.PeriodLength}}" min="1" max="10" required>
+                <span class="form-hint">Usually 3–7 days. Default is 5.</span>
+            </div>
+        </div>
+
+        <h2>Display Preferences</h2>
+
+        <label class="toggle-row">
+            <span class="toggle-label">
+                <strong>🌿 Show fertility &amp; ovulation info</strong>
+                <span class="form-hint">Toggle off to hide fertile window and ovulation data from your dashboard, calendar, and predictions.</span>
+            </span>
+            <input type="checkbox" name="show_fertility" class="toggle-check" {{if .ShowFertility}}checked{{end}}>
+            <span class="toggle-switch"></span>
+        </label>
+
+        <div class="form-group">
+            <label for="pronouns">Pronouns</label>
+            <select id="pronouns" name="pronouns" class="form-select">
+                <option value="she/her" {{if eq .Pronouns "she/her"}}selected{{end}}>She / Her</option>
+                <option value="he/him" {{if eq .Pronouns "he/him"}}selected{{end}}>He / Him</option>
+                <option value="they/them" {{if eq .Pronouns "they/them"}}selected{{end}}>They / Them</option>
+            </select>
+            <span class="form-hint">Used in partner notifications and emails.</span>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>💑 Partner Access</h2>
+    <p class="card-desc">
+        Invite your partner to see your cycle info, phases, and tips on how to be supportive.
+        They'll get their own login and a special partner dashboard.
+    </p>
+
+    {{if .HasPartner}}
+    <div class="partner-status">
+        <span class="status-badge connected">✓ Connected</span>
+        <span>Partnered with <strong>{{.PartnerName}}</strong></span>
+    </div>
+
+    <form method="POST" action="/notifications" class="notification-form">
+        <label class="toggle-row">
+            <span class="toggle-label">
+                <strong>📧 Partner notifications</strong>
+                <span class="form-hint">Your partner gets a weekly summary email plus instant alerts when you log severe symptoms or change cycle phase.</span>
+            </span>
+            <input type="checkbox" name="partner_notify" class="toggle-check" {{if .PartnerNotify}}checked{{end}} onchange="this.form.submit()">
+            <span class="toggle-switch"></span>
+        </label>
+    </form>
+    {{else}}
+        {{if .PartnerCode}}
+        <div class="invite-code-display">
+            <p>Share this invite code with your partner:</p>
+            <div class="invite-code">{{.PartnerCode}}</div>
+            <p class="form-hint">They should go to <strong>/partner/join</strong> and enter this code when creating their account.</p>
+        </div>
+        {{else}}
+        <form method="POST" action="/partner/invite">
+            <button type="submit" class="btn btn-secondary">Generate Invite Code</button>
+        </form>
+        {{end}}
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>📦 Your Data</h2>
+    <p class="card-desc">Download all your data or permanently delete your account.</p>
+
+    <div class="export-buttons">
+        <a href="/export?format=csv" class="btn btn-secondary">📄 Export as CSV</a>
+        <a href="/export?format=json" class="btn btn-secondary">📋 Export as JSON</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🛡️ Database Encryption</h2>
+    {{if .EncryptionEnabled}}
+    <div class="encryption-status active">
+        <span class="enc-icon">🔐</span>
+        <div class="enc-details">
+            <strong>Database encryption is active</strong>
+            <p>The database is encrypted at rest using AES-256-GCM with the server's encryption key. When Bloom shuts down, the database file is encrypted and the plaintext copy is removed. Periodic encrypted snapshots are taken every 5 minutes for crash resilience. Note: the server operator controls this key — for maximum privacy, self-host Bloom.</p>
+        </div>
+    </div>
+    {{else}}
+    <div class="encryption-status inactive">
+        <span class="enc-icon">🔓</span>
+        <div class="enc-details">
+            <strong>Database encryption is not enabled</strong>
+            <p>Database-at-rest encryption is not enabled on this server. If you're self-hosting, set the <code>ENCRYPTION_KEY</code> environment variable (8+ characters) to enable AES-256-GCM encryption. The database file will be encrypted when Bloom is not running.</p>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<div class="card">
+    <h2>🔐 Encrypted Backup &amp; Restore</h2>
+    <p class="card-desc">Create a password-protected backup of all your data, or restore from a previous backup. Uses AES-256-GCM encryption.</p>
+
+    <div class="backup-section">
+        <h3>📥 Create Encrypted Backup</h3>
+        <form method="POST" action="/backup" class="form-stack">
+            <div class="form-group">
+                <label for="backup_password">Backup Password</label>
+                <input type="password" id="backup_password" name="backup_password" required minlength="8" placeholder="Choose a strong password (8+ chars)">
+                <span class="form-hint">You'll need this password to restore. Bloom cannot recover it for you.</span>
+            </div>
+            <button type="submit" class="btn btn-primary">🔐 Download Encrypted Backup</button>
+        </form>
+    </div>
+
+    <div class="backup-section">
+        <h3>📤 Restore from Backup</h3>
+        <form method="POST" action="/restore" enctype="multipart/form-data" class="form-stack">
+            <div class="form-group">
+                <label for="backup_file">Backup File (.enc)</label>
+                <input type="file" id="backup_file" name="backup_file" accept=".enc" required>
+            </div>
+            <div class="form-group">
+                <label for="restore_password">Backup Password</label>
+                <input type="password" id="restore_password" name="restore_password" required placeholder="Password used when creating the backup">
+            </div>
+            <button type="submit" class="btn btn-secondary" onclick="return confirm('This will add backup data to your account. Existing data will not be deleted. Continue?')">📤 Restore from Backup</button>
+        </form>
+    </div>
+</div>
+
+<details class="danger-zone">
+    <summary class="danger-trigger">🗑️ Delete Account</summary>
+    <div class="danger-content">
+        <p class="danger-warning">This will permanently delete your account and <strong>all</strong> your data — periods, symptoms, journal entries, daily readings, and settings. This action cannot be undone.</p>
+        <form method="POST" action="/delete-account" class="delete-form" onsubmit="return confirm('Are you absolutely sure? All your data will be permanently deleted.')">
+            <div class="form-group">
+                <label for="delete_password">Enter your password to confirm:</label>
+                <input type="password" id="delete_password" name="password" required placeholder="Your password">
+            </div>
+            <button type="submit" class="btn btn-danger">Permanently Delete My Account</button>
+        </form>
+    </div>
+</details>
+{{end}}
+{{end}}

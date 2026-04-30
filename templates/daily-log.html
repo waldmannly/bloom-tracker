@@ -1,0 +1,157 @@
+{{define "title"}}Daily Log — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="page-header">
+    <h1>🌡️ Daily Fertility Log</h1>
+    <p>Track basal body temperature and cervical mucus for symptothermal fertility awareness.</p>
+</div>
+
+<div class="card">
+    <form method="POST" action="/daily-log">
+        <div class="form-group">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" value="{{formatDateInput .Today}}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="basal_temp">🌡️ Basal Body Temperature (°C)</label>
+            <div class="temp-input-group">
+                <input type="number" id="basal_temp" name="basal_temp" step="0.01" min="35.0" max="40.0" placeholder="36.50" class="temp-input">
+                <span class="temp-unit">°C</span>
+            </div>
+            <p class="form-hint">Take your temperature first thing in the morning, before getting out of bed. A sustained rise of ~0.3°C confirms ovulation.</p>
+        </div>
+
+        <div class="form-group">
+            <label>💧 Cervical Mucus</label>
+            <div class="mucus-selector">
+                <label class="mucus-option">
+                    <input type="radio" name="cervical_mucus" value="">
+                    <div class="mucus-card">
+                        <span class="mucus-icon">◯</span>
+                        <span class="mucus-label">None</span>
+                    </div>
+                </label>
+                <label class="mucus-option">
+                    <input type="radio" name="cervical_mucus" value="dry">
+                    <div class="mucus-card">
+                        <span class="mucus-icon">☀️</span>
+                        <span class="mucus-label">Dry</span>
+                        <span class="mucus-desc">No moisture</span>
+                    </div>
+                </label>
+                <label class="mucus-option">
+                    <input type="radio" name="cervical_mucus" value="sticky">
+                    <div class="mucus-card">
+                        <span class="mucus-icon">•••</span>
+                        <span class="mucus-label">Sticky</span>
+                        <span class="mucus-desc">Thick, pasty</span>
+                    </div>
+                </label>
+                <label class="mucus-option">
+                    <input type="radio" name="cervical_mucus" value="creamy">
+                    <div class="mucus-card">
+                        <span class="mucus-icon">☁️</span>
+                        <span class="mucus-label">Creamy</span>
+                        <span class="mucus-desc">Lotion-like</span>
+                    </div>
+                </label>
+                <label class="mucus-option">
+                    <input type="radio" name="cervical_mucus" value="egg-white">
+                    <div class="mucus-card fertile-indicator">
+                        <span class="mucus-icon">💧</span>
+                        <span class="mucus-label">Egg White</span>
+                        <span class="mucus-desc">Peak fertility</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>🌙 Sleep Quality</label>
+            <div class="rating-selector" data-field="sleep_quality">
+                <input type="hidden" name="sleep_quality" value="">
+                <button type="button" class="rating-btn" data-value="1" title="Very Poor">1 😣</button>
+                <button type="button" class="rating-btn" data-value="2" title="Poor">2 😕</button>
+                <button type="button" class="rating-btn" data-value="3" title="Okay">3 😐</button>
+                <button type="button" class="rating-btn" data-value="4" title="Good">4 😊</button>
+                <button type="button" class="rating-btn" data-value="5" title="Excellent">5 ⭐</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>😰 Stress Level</label>
+            <div class="rating-selector" data-field="stress_level">
+                <input type="hidden" name="stress_level" value="">
+                <button type="button" class="rating-btn" data-value="1" title="Very Low">1 😌</button>
+                <button type="button" class="rating-btn" data-value="2" title="Low">2 🙂</button>
+                <button type="button" class="rating-btn" data-value="3" title="Moderate">3 😐</button>
+                <button type="button" class="rating-btn" data-value="4" title="High">4 😟</button>
+                <button type="button" class="rating-btn" data-value="5" title="Very High">5 😫</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>⚡ Energy Level</label>
+            <div class="rating-selector" data-field="energy_level">
+                <input type="hidden" name="energy_level" value="">
+                <button type="button" class="rating-btn" data-value="1" title="Exhausted">1 💤</button>
+                <button type="button" class="rating-btn" data-value="2" title="Low">2 😮‍💨</button>
+                <button type="button" class="rating-btn" data-value="3" title="Moderate">3 🙂</button>
+                <button type="button" class="rating-btn" data-value="4" title="Good">4 💪</button>
+                <button type="button" class="rating-btn" data-value="5" title="High Energy">5 🔥</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes <span class="optional">(optional)</span></label>
+            <textarea id="notes" name="notes" rows="2" placeholder="Sleep quality, woke up early, feeling warm..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Daily Reading</button>
+    </form>
+</div>
+
+<div class="methodology-hint">
+    <h3>📖 How Symptothermal Tracking Works</h3>
+    <p>Your basal body temperature (BBT) rises ~0.3°C after ovulation due to progesterone. Combined with cervical mucus changes (egg-white mucus = peak fertility), this provides the most accurate natural fertility awareness method (99.6% effective with consistent tracking).</p>
+    <p><a href="/methodology">Learn more about our calculations →</a></p>
+</div>
+
+{{if .Readings}}
+<div class="section">
+    <h2>📋 Recent Readings</h2>
+    <div class="readings-list">
+        {{range .Readings}}
+        <div class="reading-row">
+            <div class="reading-date">{{formatDate .Date}}</div>
+            <div class="reading-data">
+                {{if gt .BasalTemp 0.0}}
+                <span class="reading-temp">🌡️ {{formatTemp .BasalTemp}}</span>
+                {{end}}
+                {{if .CervicalMucus}}
+                <span class="reading-mucus mucus-{{.CervicalMucus}}">
+                    {{if eq .CervicalMucus "dry"}}☀️ Dry{{end}}
+                    {{if eq .CervicalMucus "sticky"}}••• Sticky{{end}}
+                    {{if eq .CervicalMucus "creamy"}}☁️ Creamy{{end}}
+                    {{if eq .CervicalMucus "egg-white"}}💧 Egg White{{end}}
+                </span>
+                {{end}}
+                {{if gt .SleepQuality 0}}<span class="reading-wellness">🌙{{.SleepQuality}}/5</span>{{end}}
+                {{if gt .StressLevel 0}}<span class="reading-wellness">😰{{.StressLevel}}/5</span>{{end}}
+                {{if gt .EnergyLevel 0}}<span class="reading-wellness">⚡{{.EnergyLevel}}/5</span>{{end}}
+            </div>
+            {{if .Notes}}<p class="reading-notes">{{.Notes}}</p>{{end}}
+            <form action="/delete-daily-log" method="POST" class="inline">
+                <input type="hidden" name="reading_id" value="{{.ID}}">
+                <button type="submit" class="btn btn-xs btn-danger" title="Delete">✕</button>
+            </form>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}
+
+</div>
+{{end}}
+{{end}}

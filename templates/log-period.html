@@ -1,0 +1,53 @@
+{{define "title"}}Log Period — Bloom{{end}}
+{{define "content"}}
+{{with .Data}}
+<div class="page-header">
+    <h1>🩸 Log Period</h1>
+    <p>Record the start of your period. You can mark it as ended later from the dashboard.</p>
+</div>
+
+{{if .ActivePeriod}}
+<div class="banner banner-period">
+    <div class="banner-text">
+        <span class="banner-icon">🩸</span>
+        You have an active period that started {{formatDate .ActivePeriod.StartDate}}
+    </div>
+    <form action="/end-period" method="POST">
+        <input type="hidden" name="period_id" value="{{.ActivePeriod.ID}}">
+        <button type="submit" class="btn btn-sm btn-white">Mark as Ended</button>
+    </form>
+</div>
+{{end}}
+
+<div class="card">
+    <form method="POST" action="/log-period" class="form-stack">
+        <div class="form-group">
+            <label for="start_date">Period Start Date</label>
+            <input type="date" id="start_date" name="start_date" value="{{formatDateInput .Today}}" required max="{{formatDateInput .Today}}">
+        </div>
+        <button type="submit" class="btn btn-primary">Log Period Start</button>
+    </form>
+</div>
+
+{{if .History}}
+<div class="section">
+    <h2>📋 Period History</h2>
+    <div class="history-list">
+        {{range .History}}
+        <div class="history-item">
+            <div class="history-dates">
+                <span class="history-start">{{formatDate .StartDate}}</span>
+                {{if .EndDate}}
+                <span class="history-arrow">→</span>
+                <span class="history-end">{{formatDate .EndDate}}</span>
+                {{else}}
+                <span class="history-badge active">Ongoing</span>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}
+{{end}}
+{{end}}

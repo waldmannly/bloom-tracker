@@ -1,0 +1,111 @@
+{{define "title"}}How It Works — Bloom{{end}}
+{{define "content"}}
+<div class="dashboard">
+    <div class="page-header">
+        <h1>🔬 How Bloom Calculates Your Cycle</h1>
+        <p>Transparency is a core part of Bloom's privacy-first approach. Here's exactly how every prediction is made.</p>
+    </div>
+
+    <div class="methodology-section">
+        <h2>📅 Cycle Phase Detection</h2>
+        <div class="formula-card">
+            <p>Bloom divides your cycle into four phases based on your configured cycle length{{with .Data}} (currently <strong>{{.CycleLength}} days</strong>){{end}}:</p>
+            <table class="method-table">
+                <tr>
+                    <td>🌺 <strong>Menstruation</strong></td>
+                    <td>Days 1 through {{with .Data}}{{.PeriodLength}}{{else}}your period length{{end}}</td>
+                    <td>Active period</td>
+                </tr>
+                <tr>
+                    <td>🌱 <strong>Follicular</strong></td>
+                    <td>After period ends until ~2 days before ovulation</td>
+                    <td>Estrogen rises, energy building</td>
+                </tr>
+                <tr>
+                    <td>🌸 <strong>Ovulation</strong></td>
+                    <td>Ovulation day ± 1 day</td>
+                    <td>Egg release, peak fertility</td>
+                </tr>
+                <tr>
+                    <td>🌙 <strong>Luteal</strong></td>
+                    <td>After ovulation until next period</td>
+                    <td>Progesterone rises, PMS possible</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>🥚 Ovulation Prediction</h2>
+        <div class="formula-card">
+            <div class="formula">
+                <code>Ovulation Day = Cycle Length − 14</code>
+            </div>
+            {{with .Data}}
+            <p>With your <strong>{{.CycleLength}}-day</strong> cycle: Ovulation is estimated around <strong>day {{.OvulationDay}}</strong>.</p>
+            {{end}}
+            <p>This is the <strong>calendar method</strong> — it assumes the luteal phase (after ovulation) is consistently ~14 days. This works for most people, but individual biology varies.</p>
+            <div class="accuracy-note">
+                <strong>Accuracy:</strong> Calendar-only method is ~75-80% effective for fertility awareness. For higher accuracy, track your <strong>basal body temperature</strong> and <strong>cervical mucus</strong> using the <a href="/daily-log">Daily Log</a>.
+            </div>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>🌿 Fertile Window</h2>
+        <div class="formula-card">
+            <div class="formula">
+                <code>Fertile Window = Ovulation Day − 5 through Ovulation Day + 1</code>
+            </div>
+            {{with .Data}}
+            <p>With ovulation on day {{.OvulationDay}}: Your fertile window is <strong>day {{.FertileStart}} through day {{.FertileEnd}}</strong>.</p>
+            {{end}}
+            <p>Sperm can survive up to 5 days inside the body, and the egg survives ~24 hours after release. This creates a ~6-day window where conception is possible.</p>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>🌡️ Symptothermal Method (Advanced)</h2>
+        <div class="formula-card">
+            <p>For higher accuracy, Bloom supports <strong>basal body temperature (BBT)</strong> and <strong>cervical mucus</strong> tracking:</p>
+            <ul class="method-list">
+                <li><strong>BBT:</strong> Temperature rises ~0.3°C after ovulation due to progesterone. A sustained 3-day rise confirms ovulation occurred.</li>
+                <li><strong>Cervical Mucus:</strong> Changes from dry → sticky → creamy → egg-white (peak fertility) → dry after ovulation.</li>
+                <li><strong>Combined:</strong> When BBT shift + mucus dry-up both confirm ovulation, accuracy jumps to <strong>99.6%</strong>.</li>
+            </ul>
+            <p>Track these daily using the <a href="/daily-log">Daily Log</a> page and view patterns on the <a href="/trends">Trends</a> page.</p>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>📊 Cycle Length & Averages</h2>
+        <div class="formula-card">
+            <p>Bloom calculates your average cycle length from the intervals between consecutive period start dates. Only cycles between 15-60 days are included (to filter out data entry errors).</p>
+            <p>The more periods you log, the more accurate your predictions become. After 3+ cycles, Bloom can detect irregular patterns and alert you.</p>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>🔒 What Bloom Does NOT Do</h2>
+        <div class="formula-card">
+            <ul class="method-list">
+                <li><strong>No AI prediction:</strong> Bloom uses transparent mathematical formulas, not opaque machine learning models.</li>
+                <li><strong>No cloud sync:</strong> All calculations happen on the server running Bloom. When self-hosted, no data leaves your device. On a hosted instance, data stays on that server but doesn't sync to third-party services.</li>
+                <li><strong>No medical claims:</strong> Bloom is an awareness tool, not a medical device. Always consult healthcare providers for medical decisions.</li>
+                <li><strong>No data selling:</strong> Your cycle data is yours alone. See our <a href="/privacy">Privacy Policy</a>.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="methodology-section">
+        <h2>📚 References</h2>
+        <div class="formula-card">
+            <ul class="method-list">
+                <li>Wilcox AJ, Dunson D, Baird DD. "The timing of the 'fertile window' in the menstrual cycle." BMJ. 2000;321(7271):1259-1262.</li>
+                <li>Frank-Herrmann P, et al. "The effectiveness of a fertility awareness based method." Human Reproduction. 2007;22(5):1310-1319.</li>
+                <li>ACOG Practice Bulletin No. 110. "Noncontraceptive Uses of Hormonal Contraceptives." 2010.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{{end}}

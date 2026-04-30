@@ -1,0 +1,92 @@
+{{define "title"}}Privacy — Bloom{{end}}
+{{define "content"}}
+<div class="dashboard">
+
+    <div class="page-header">
+        <h1>🔒 Privacy Policy</h1>
+        <p>Plain language. No legalese. Here's exactly how Bloom handles your data.</p>
+    </div>
+
+    <div class="card" style="border-left: 4px solid #e67e22;">
+        <h2>⚠️ Hosted vs. Self-Hosted — Be Informed</h2>
+        <p>Bloom is <strong>open-source software designed to be self-hosted</strong>. If you self-host Bloom on your own device, <strong>your data never leaves your machine</strong> — that's the gold standard for privacy.</p>
+        <p>If you're using a <strong>hosted instance</strong> (like this website), your data lives on someone else's server. While we take every precaution to protect it, you should understand the tradeoffs:</p>
+        <ul class="privacy-list">
+            <li>🏠 <strong>Self-hosted</strong> = full privacy. Data on your hardware, under your control. No one else can access it.</li>
+            <li>🌐 <strong>Hosted</strong> = convenient, but the server operator <em>could</em> technically access the database. You're trusting them.</li>
+            <li>🔐 We encrypt the database at rest and use secure connections (HTTPS), but no hosted service can guarantee the same level of privacy as running it yourself.</li>
+            <li>📖 Bloom is fully open-source — you can verify exactly what the code does, and spin up your own instance anytime.</li>
+        </ul>
+        <p><strong>Our honest recommendation:</strong> If your cycle data privacy is critical to you, <a href="https://github.com/bloomtracker/bloom#-self-hosting-guide">self-host Bloom</a>. It takes about 5 minutes.</p>
+    </div>
+
+    <div class="card">
+        <h2>📍 How Your Data is Stored</h2>
+        <p>Bloom stores all data in a single SQLite database file on the server running the app. There is no syncing to external cloud services, no third-party databases, and no data warehouses.</p>
+        <ul class="privacy-list">
+            <li>✅ Data stored in a single SQLite file — not spread across services</li>
+            <li>✅ No third-party databases, analytics platforms, or data brokers</li>
+            <li>✅ Optional AES-256-GCM encryption at rest with a user-provided key</li>
+            <li>🏠 <strong>Self-hosted:</strong> Your data stays on your own hardware — nobody else can access it</li>
+            <li>🌐 <strong>Hosted:</strong> Your data lives on the server operator's machine — convenient, but you're trusting them with your data</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>🚫 What Bloom Does NOT Do</h2>
+        <ul class="privacy-list">
+            <li>❌ <strong>No AI prediction</strong> — Bloom uses transparent mathematical formulas, not opaque machine learning models</li>
+            <li>❌ <strong>No cloud sync</strong> — Your data is not synced to any external cloud service or third-party server</li>
+            <li>❌ <strong>No data selling</strong> — Your cycle data is yours alone. Period.</li>
+            <li>❌ <strong>No ads</strong> — ever</li>
+            <li>❌ <strong>No analytics or tracking scripts</strong> — no Google Analytics, no pixels, nothing</li>
+            <li>❌ <strong>No social media integrations</strong></li>
+            <li>❌ <strong>No cookies for tracking</strong> — only a session cookie for login</li>
+            <li>❌ <strong>No upselling</strong> — no premium features behind paywalls</li>
+            <li>❌ <strong>No medical claims</strong> — Bloom is an awareness tool, not a medical device. Always consult healthcare providers for medical decisions</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>🔐 Security</h2>
+        <ul class="privacy-list">
+            <li>🔑 Passwords are hashed with bcrypt (industry standard)</li>
+            <li>🍪 Sessions use secure, HttpOnly cookies</li>
+            <li>🛡️ Security headers protect against common web attacks (XSS, clickjacking, MIME sniffing)</li>
+            <li>🔒 Camera, microphone, and geolocation access are blocked by default</li>
+            <li>🗄️ Optional database-at-rest encryption (AES-256-GCM with PBKDF2 key derivation)</li>
+            <li>🔐 Encrypted backups use AES-256-GCM with a password you choose (never stored)</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>📧 Email Notifications</h2>
+        <p>If you choose to enable partner email notifications:</p>
+        <ul class="privacy-list">
+            <li>📤 Emails are sent through the server operator's configured email service — no third-party marketing platforms</li>
+            <li>⚙️ You control this feature entirely — it's off by default</li>
+            <li>🙅 Email content is generated on the server, never stored externally</li>
+            <li>⚠️ On a hosted instance, the server operator's email service will process the email content. Self-host for maximum privacy.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>📦 Your Rights</h2>
+        <p>You have complete control over your data:</p>
+        <ul class="privacy-list">
+            <li>📥 <strong>Export anytime</strong> — download all your data as CSV or JSON from <a href="/settings">Settings</a></li>
+            <li>🗑️ <strong>Delete anytime</strong> — permanently wipe your account and all associated data from <a href="/settings">Settings</a></li>
+            <li>👤 <strong>Update anytime</strong> — change your settings, pronouns, and preferences whenever you want</li>
+            <li>🚚 <strong>Migrate anytime</strong> — export your data and import it into your own self-hosted instance</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>💛 Why This Matters</h2>
+        <p>Period data is deeply personal. In a world where health apps have been caught selling data, sharing with advertisers, or handing records to authorities — Bloom takes a different approach.</p>
+        <p>We built Bloom as open-source software so you don't have to <em>trust</em> us — you can <em>verify</em>. The code is public. The math is documented. And you can always run it yourself.</p>
+        <p><strong>Your body, your data, your choice. Always.</strong></p>
+    </div>
+
+</div>
+{{end}}
