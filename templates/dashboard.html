@@ -50,6 +50,7 @@
             Period started {{formatDate .ActivePeriod.StartDate}}
         </div>
         <form action="/end-period" method="POST">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <input type="hidden" name="period_id" value="{{.ActivePeriod.ID}}">
             <button type="submit" class="btn btn-sm btn-white">Mark as Ended</button>
         </form>

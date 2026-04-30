@@ -13,6 +13,7 @@
         You have an active period that started {{formatDate .ActivePeriod.StartDate}}
     </div>
     <form action="/end-period" method="POST">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <input type="hidden" name="period_id" value="{{.ActivePeriod.ID}}">
         <button type="submit" class="btn btn-sm btn-white">Mark as Ended</button>
     </form>
@@ -21,6 +22,7 @@
 
 <div class="card">
     <form method="POST" action="/log-period" class="form-stack">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <div class="form-group">
             <label for="start_date">Period Start Date</label>
             <input type="date" id="start_date" name="start_date" value="{{formatDateInput .Today}}" required max="{{formatDateInput .Today}}">
@@ -44,10 +46,52 @@
                 <span class="history-badge active">Ongoing</span>
                 {{end}}
             </div>
+            <div class="history-actions">
+                <button type="button" class="btn btn-xs btn-secondary" onclick="editPeriod(this)" data-id="{{.ID}}" data-start="{{formatDateInput .StartDate}}" {{if .EndDate}}data-end="{{formatDateInput .EndDate}}"{{end}}>✏️ Edit</button>
+                <form action="/delete-period" method="POST" class="inline" onsubmit="return confirm('Delete this period entry?')">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="period_id" value="{{.ID}}">
+                    <button type="submit" class="btn btn-xs btn-danger">✕</button>
+                </form>
+            </div>
         </div>
         {{end}}
     </div>
 </div>
+
+<div id="edit-period-modal" class="edit-modal" style="display:none">
+    <div class="card">
+        <h3>✏️ Edit Period</h3>
+        <form method="POST" action="/edit-period" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+            <input type="hidden" name="period_id" id="edit-period-id">
+            <div class="form-group">
+                <label for="edit-start">Start Date</label>
+                <input type="date" id="edit-start" name="start_date" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-end">End Date <span class="optional">(leave blank if ongoing)</span></label>
+                <input type="date" id="edit-end" name="end_date">
+            </div>
+            <div class="form-row">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditPeriod()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function editPeriod(btn) {
+    document.getElementById('edit-period-id').value = btn.dataset.id;
+    document.getElementById('edit-start').value = btn.dataset.start;
+    document.getElementById('edit-end').value = btn.dataset.end || '';
+    document.getElementById('edit-period-modal').style.display = 'flex';
+}
+function closeEditPeriod() {
+    document.getElementById('edit-period-modal').style.display = 'none';
+}
+</script>
 {{end}}
 {{end}}
 {{end}}

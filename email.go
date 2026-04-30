@@ -52,6 +52,12 @@ func initEmail(host, port, email, pass, apiURL, apiKey string) {
 	}
 }
 
+func sanitizeEmailHeader(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
+}
+
 func sendEmail(to, subject, body string) error {
 	if !emailConfig.Enabled {
 		log.Printf("📧 [DRY RUN] Would email %s: %s", to, subject)
@@ -108,7 +114,7 @@ func sendEmailViaSMTP(to, subject, body string) error {
 	from := emailConfig.SenderEmail
 	msg := fmt.Sprintf(
 		"From: Bloom Period Tracker <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n%s",
-		from, to, subject, body,
+		from, sanitizeEmailHeader(to), sanitizeEmailHeader(subject), body,
 	)
 
 	auth := smtp.PlainAuth("", from, emailConfig.SenderPass, emailConfig.SMTPHost)
@@ -124,7 +130,7 @@ func sendEmailViaSMTP(to, subject, body string) error {
 
 // ─── Phase Notification Emails ──────────────────────────────────────────
 
-func buildPhaseEmail(ownerName, phase string, info *CycleInfo) (string, string) {
+func buildPhaseEmail(ownerName, phase string, info *CycleInfo, customPrefs string) (string, string) {
 	var subject string
 	switch phase {
 	case "menstruation":
@@ -161,6 +167,26 @@ func buildPhaseEmail(ownerName, phase string, info *CycleInfo) (string, string) 
 		activitiesHTML += fmt.Sprintf(`<span style="display:inline-block;background:#F0F0FA;padding:6px 14px;border-radius:20px;margin:4px;font-size:13px;color:#6b4f8a;">%s</span>`, e)
 	}
 
+	// Build custom preferences HTML
+	customPrefsHTML := ""
+	if strings.TrimSpace(customPrefs) != "" {
+		items := strings.FieldsFunc(customPrefs, func(r rune) bool { return r == ',' || r == '\n' })
+		itemsHTML := ""
+		for _, item := range items {
+			item = strings.TrimSpace(item)
+			if item != "" {
+				itemsHTML += fmt.Sprintf(`<li style="padding:6px 0;color:#555;">%s</li>`, item)
+			}
+		}
+		if itemsHTML != "" {
+			customPrefsHTML = fmt.Sprintf(`
+  <div style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 12px rgba(100,50,60,0.06);margin-bottom:16px;border-left:4px solid #D4788C;">
+    <h2 style="font-size:16px;margin:0 0 8px;color:#D4788C;">💛 What %s Actually Wants Right Now</h2>
+    <ul style="list-style:none;padding:0;margin:0;">%s</ul>
+  </div>`, ownerName, itemsHTML)
+		}
+	}
+
 	fertileStatus := "Not in fertile window"
 	fertileColor := "#A85566"
 	if info.IsInFertileWindow {
@@ -184,6 +210,8 @@ func buildPhaseEmail(ownerName, phase string, info *CycleInfo) (string, string) 
     <p style="color:#555;line-height:1.7;margin:0 0 12px;">%s</p>
     <ul style="list-style:none;padding:0;margin:0;">%s</ul>
   </div>
+
+  %s
 
   <div style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 12px rgba(100,50,60,0.06);margin-bottom:16px;">
     <h2 style="font-size:16px;margin:0 0 12px;color:#b07840;">🎁 Treat Ideas</h2>
@@ -225,6 +253,7 @@ func buildPhaseEmail(ownerName, phase string, info *CycleInfo) (string, string) 
 		strings.ToUpper(phase[:1])+phase[1:],
 		phaseEmailColor(phase), info.CycleDay, ownerName,
 		info.PartnerTip, actionsHTML,
+		customPrefsHTML,
 		treatsHTML, foodsHTML, activitiesHTML,
 		info.Encouragement,
 		info.DaysUntilPeriod, fertileColor, fertileStatus,
@@ -288,7 +317,8 @@ func notifyPartnerIfPhaseChanged(ownerID int64) {
 		return
 	}
 
-	subject, body := buildPhaseEmail(owner.Name, info.Phase, info)
+	phasePrefs := getPhasePreferences(ownerID)
+	subject, body := buildPhaseEmail(owner.Name, info.Phase, info, phasePrefs[info.Phase])
 
 	go func() {
 		if err := sendEmail(partner.Email, subject, body); err == nil {
@@ -483,7 +513,8 @@ func sendWeeklyPartnerNotifications() {
 		}
 
 		info := calculateCycleInfo(lastPeriod.StartDate, pair.CycleLength, pair.PeriodLength, today)
-		subject, body := buildPhaseEmail(pair.OwnerName, info.Phase, info)
+		phasePrefs := getPhasePreferences(pair.OwnerID)
+		subject, body := buildPhaseEmail(pair.OwnerName, info.Phase, info, phasePrefs[info.Phase])
 		subject = "📅 Weekly Update: " + subject
 
 		if err := sendEmail(pair.PartnerEmail, subject, body); err != nil {

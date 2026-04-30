@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
 </head>
-<body>
+<body{{if .User}} data-theme="{{.User.Theme}}"{{end}}>
     {{if .IsLoggedIn}}
     <nav class="main-nav">
         <div class="nav-inner">
@@ -52,7 +52,7 @@
 
     <footer class="main-footer">
         <p>🌸 Bloom — Open-source period tracking. No ads. No tracking. No data selling. <a href="/privacy" style="color:inherit;text-decoration:underline;">Privacy details</a>.</p>
-        <p class="footer-links"><a href="/privacy">Privacy Policy</a> · <a href="/methodology">How It Works</a></p>
+        <p class="footer-links"><a href="/privacy">Privacy Policy</a> · <a href="/methodology">How It Works</a> · <a href="https://github.com/waldmannly/bloom-tracker" target="_blank">GitHub</a></p>
     </footer>
 
     <script src="/static/app.js"></script>

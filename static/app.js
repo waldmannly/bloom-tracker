@@ -29,12 +29,6 @@ function selectCategory(btn) {
 // ─── Symptom Multi-Select ───────────────────────────────────────────────
 function toggleSymptom(btn) {
     btn.classList.toggle('active');
-    // Clear custom input if selecting pills
-    var customInput = document.getElementById('custom-symptom-input');
-    if (customInput && customInput.style.display !== 'none') {
-        customInput.style.display = 'none';
-        customInput.value = '';
-    }
     updateSymptomsInput();
 }
 
@@ -49,10 +43,15 @@ function updateSymptomsInput() {
     // Update the selected display
     var display = document.getElementById('selected-symptoms-display');
     var list = document.getElementById('selected-list');
+    var customInput = document.getElementById('custom-symptom-input');
+    var customVal = (customInput && customInput.value.trim()) ? customInput.value.trim() : '';
+
     if (display && list) {
-        if (selected.length > 0) {
+        var allSelected = selected.slice();
+        if (customVal) allSelected.push(customVal + ' (custom)');
+        if (allSelected.length > 0) {
             display.style.display = 'block';
-            list.textContent = selected.join(', ');
+            list.textContent = allSelected.join(', ');
         } else {
             display.style.display = 'none';
         }
@@ -71,14 +70,11 @@ function toggleCustomSymptom() {
     if (input.style.display === 'none') {
         input.style.display = 'block';
         input.focus();
-        // Clear pill selections
-        document.querySelectorAll('.pill.sym').forEach(function(p) {
-            p.classList.remove('active');
-        });
-        document.getElementById('symptom-input').value = 'custom';
+        input.addEventListener('input', updateSymptomsInput);
     } else {
         input.style.display = 'none';
         input.value = '';
+        updateSymptomsInput();
     }
 }
 
@@ -122,10 +118,9 @@ document.addEventListener('DOMContentLoaded', function() {
         symptomForm.addEventListener('submit', function(e) {
             var symptomsInput = document.getElementById('symptoms-input');
             var customInput = document.getElementById('custom-symptom-input');
-            if (customInput && customInput.value.trim()) {
-                return; // Custom symptom takes priority
-            }
-            if (!symptomsInput || !symptomsInput.value.trim()) {
+            var hasPills = symptomsInput && symptomsInput.value.trim();
+            var hasCustom = customInput && customInput.value.trim();
+            if (!hasPills && !hasCustom) {
                 e.preventDefault();
                 alert('Please select at least one symptom or type a custom one');
             }

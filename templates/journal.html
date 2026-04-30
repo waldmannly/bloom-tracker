@@ -12,6 +12,7 @@
     <div class="card journal-form-card">
         <h2>✏️ New Entry</h2>
         <form method="POST" action="/journal" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <div class="form-row">
                 <div class="form-group">
                     <label for="journal_date">Date</label>
@@ -64,6 +65,7 @@
                         <span class="journal-date">{{formatDate .Date}}</span>
                     </div>
                     <form method="POST" action="/delete-journal" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                         <input type="hidden" name="entry_id" value="{{.ID}}">
                         <button type="submit" class="btn-icon" title="Delete" onclick="return confirm('Delete this journal entry?')">🗑️</button>
                     </form>

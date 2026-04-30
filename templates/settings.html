@@ -9,6 +9,7 @@
     <h2>Cycle Settings</h2>
     <p class="card-desc">Adjust these to improve prediction accuracy.</p>
     <form method="POST" action="/settings" class="form-stack">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <div class="form-row">
             <div class="form-group">
                 <label for="cycle_length">Average Cycle Length (days)</label>
@@ -43,7 +44,43 @@
             <span class="form-hint">Used in partner notifications and emails.</span>
         </div>
 
+        <div class="form-group">
+            <label for="theme">Color Theme</label>
+            <select id="theme" name="theme" class="form-select">
+                <option value="bloom" {{if eq .Theme "bloom"}}selected{{end}}>🌸 Bloom (Rose/Pink)</option>
+                <option value="ocean" {{if eq .Theme "ocean"}}selected{{end}}>🌊 Ocean (Blue/Teal)</option>
+            </select>
+            <span class="form-hint">Choose a color palette that feels right for you.</span>
+        </div>
+
         <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>💛 What Helps You Each Phase</h2>
+    <p class="card-desc">Tell your partner what you actually want during each phase. These get included in their notification emails — no more guessing!</p>
+    <form method="POST" action="/phase-preferences" class="form-stack">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="phase-pref-grid">
+            <div class="phase-pref-card phase-menstruation-border">
+                <div class="phase-pref-header">🌺 Menstruation</div>
+                <textarea name="pref_menstruation" placeholder="e.g. Heating pad, dark chocolate, leave me alone for a bit, gentle back rubs..." rows="3">{{index .PhasePrefs "menstruation"}}</textarea>
+            </div>
+            <div class="phase-pref-card phase-follicular-border">
+                <div class="phase-pref-header">🌱 Follicular</div>
+                <textarea name="pref_follicular" placeholder="e.g. Plan a date night, try a new restaurant, go hiking together..." rows="3">{{index .PhasePrefs "follicular"}}</textarea>
+            </div>
+            <div class="phase-pref-card phase-ovulation-border">
+                <div class="phase-pref-header">🌸 Ovulation</div>
+                <textarea name="pref_ovulation" placeholder="e.g. Surprise me with flowers, take photos together, spontaneous adventures..." rows="3">{{index .PhasePrefs "ovulation"}}</textarea>
+            </div>
+            <div class="phase-pref-card phase-luteal-border">
+                <div class="phase-pref-header">🌙 Luteal</div>
+                <textarea name="pref_luteal" placeholder="e.g. Cozy nights in, comfort food, don't comment on what I'm eating, extra patience..." rows="3">{{index .PhasePrefs "luteal"}}</textarea>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Phase Preferences</button>
     </form>
 </div>
 
@@ -61,6 +98,7 @@
     </div>
 
     <form method="POST" action="/notifications" class="notification-form">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <label class="toggle-row">
             <span class="toggle-label">
                 <strong>📧 Partner notifications</strong>
@@ -79,6 +117,7 @@
         </div>
         {{else}}
         <form method="POST" action="/partner/invite">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <button type="submit" class="btn btn-secondary">Generate Invite Code</button>
         </form>
         {{end}}
@@ -123,6 +162,7 @@
     <div class="backup-section">
         <h3>📥 Create Encrypted Backup</h3>
         <form method="POST" action="/backup" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <div class="form-group">
                 <label for="backup_password">Backup Password</label>
                 <input type="password" id="backup_password" name="backup_password" required minlength="8" placeholder="Choose a strong password (8+ chars)">
@@ -135,6 +175,7 @@
     <div class="backup-section">
         <h3>📤 Restore from Backup</h3>
         <form method="POST" action="/restore" enctype="multipart/form-data" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <div class="form-group">
                 <label for="backup_file">Backup File (.enc)</label>
                 <input type="file" id="backup_file" name="backup_file" accept=".enc" required>
@@ -153,6 +194,7 @@
     <div class="danger-content">
         <p class="danger-warning">This will permanently delete your account and <strong>all</strong> your data — periods, symptoms, journal entries, daily readings, and settings. This action cannot be undone.</p>
         <form method="POST" action="/delete-account" class="delete-form" onsubmit="return confirm('Are you absolutely sure? All your data will be permanently deleted.')">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <div class="form-group">
                 <label for="delete_password">Enter your password to confirm:</label>
                 <input type="password" id="delete_password" name="password" required placeholder="Your password">

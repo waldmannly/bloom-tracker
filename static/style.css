@@ -645,12 +645,39 @@ input[type="range"]::-webkit-slider-thumb {
     border-radius: var(--radius-sm);
     padding: 0.85rem 1rem;
     box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 .history-dates { display: flex; align-items: center; gap: 0.5rem; }
+.history-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 .history-arrow { color: var(--text-muted); }
 .history-badge { font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 20px; }
 .history-badge.active { background: var(--menstruation-bg); color: var(--menstruation); }
+
+.edit-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+.edit-modal .card {
+    max-width: 420px;
+    width: 100%;
+    animation: fadeIn 0.2s ease;
+}
+.form-row { display: flex; gap: 0.5rem; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
 /* ─── Toggle Switch ────────────────────────────────────────────────────── */
 .notification-form { margin-top: 1rem; }
@@ -1164,29 +1191,45 @@ details[open] .danger-trigger::before { content: "▾ "; }
 }
 
 .rating-btn {
-    width: 3rem;
-    height: 3rem;
+    min-width: 4.2rem;
+    padding: 0.6rem 0.5rem;
     border-radius: var(--radius-sm);
     border: 2px solid var(--border);
     background: var(--bg-card);
-    font-size: 1.3rem;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 0.15rem;
+    line-height: 1.2;
+}
+
+.rating-btn .rating-emoji {
+    font-size: 1.4rem;
+}
+
+.rating-btn .rating-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
 }
 
 .rating-btn:hover {
     border-color: var(--rose);
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 .rating-btn.selected {
     border-color: var(--rose);
     background: var(--rose-light);
     box-shadow: 0 0 0 2px var(--rose-light);
-    transform: scale(1.1);
+    transform: scale(1.05);
+}
+
+.rating-btn.selected .rating-label {
+    color: var(--rose-dark);
 }
 
 .reading-wellness {
@@ -1232,3 +1275,222 @@ details[open] .danger-trigger::before { content: "▾ "; }
 .backup-section { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
 .backup-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .backup-section h3 { margin-bottom: 12px; }
+
+/* ─── Year-at-a-Glance Calendar ──────────────────────────────────────── */
+.year-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+.mini-month {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    box-shadow: var(--shadow);
+}
+.mini-month-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-align: center;
+    margin-bottom: 0.4rem;
+    color: var(--rose-dark);
+}
+.mini-cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    margin-bottom: 0.2rem;
+}
+.mini-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.6rem;
+    gap: 1px;
+}
+.mini-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    line-height: 1;
+    color: var(--text);
+}
+.mini-day.empty { visibility: hidden; }
+.mini-day.period { background: var(--menstruation); color: white; }
+.mini-day.predicted { background: var(--menstruation-light); color: var(--menstruation); }
+.mini-day.today { outline: 2px solid var(--rose); font-weight: 700; }
+
+@media (max-width: 768px) {
+    .year-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+    .year-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Word Cloud ─────────────────────────────────────────────────────── */
+.word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem 0.8rem;
+    padding: 2rem 1rem;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-height: 200px;
+}
+.cloud-word {
+    display: inline-block;
+    line-height: 1.3;
+    transition: transform 0.2s, color 0.2s;
+    cursor: default;
+}
+.cloud-word:hover { transform: scale(1.15); }
+.cloud-word.size-1 { font-size: 0.8rem; color: var(--text-muted); }
+.cloud-word.size-2 { font-size: 1.1rem; color: var(--lavender); }
+.cloud-word.size-3 { font-size: 1.5rem; color: var(--teal); font-weight: 600; }
+.cloud-word.size-4 { font-size: 2rem; color: var(--rose); font-weight: 700; }
+.cloud-word.size-5 { font-size: 2.6rem; color: var(--rose-dark); font-weight: 800; }
+
+/* ─── Wellness Chart ─────────────────────────────────────────────────── */
+.wellness-chart {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+}
+.wellness-legend {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+.wellness-legend-item { display: flex; align-items: center; gap: 0.3rem; }
+.legend-sleep::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--lavender); }
+.legend-stress::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--orange); }
+.legend-energy::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--teal); }
+.wellness-bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 120px;
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+}
+.wellness-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 20px;
+    position: relative;
+}
+.wellness-bar-group {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 100px;
+    width: 100%;
+}
+.w-bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    transition: height 0.3s;
+}
+.w-bar.sleep { background: var(--lavender); }
+.w-bar.stress { background: var(--orange); }
+.w-bar.energy { background: var(--teal); }
+.w-date {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    position: absolute;
+    bottom: 0;
+    white-space: nowrap;
+    transform: rotate(-45deg);
+    transform-origin: top left;
+}
+
+/* ─── Phase Preferences ───────────────────────────────────────────────────── */
+.phase-pref-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.phase-pref-card {
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    background: var(--bg);
+    border-left: 4px solid var(--border);
+}
+.phase-pref-card textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 0.6rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 60px;
+    background: var(--bg-card);
+    color: var(--text);
+}
+.phase-pref-card textarea:focus {
+    outline: none;
+    border-color: var(--rose);
+    box-shadow: 0 0 0 3px rgba(212,120,140,0.15);
+}
+.phase-pref-header {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+.phase-menstruation-border { border-left-color: var(--menstruation); }
+.phase-follicular-border { border-left-color: var(--follicular); }
+.phase-ovulation-border { border-left-color: var(--ovulation); }
+.phase-luteal-border { border-left-color: var(--luteal); }
+
+@media (max-width: 600px) {
+    .phase-pref-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Ocean Theme ─────────────────────────────────────────────────────────── */
+[data-theme="ocean"] {
+    --rose: #4A90B8;
+    --rose-light: #C5DDE8;
+    --rose-dark: #2C6B8C;
+    --lavender: #6B8EAD;
+    --lavender-light: #B8CED8;
+    --teal: #5BA3A0;
+    --teal-light: #B5D5D3;
+    --green: #6BAE8C;
+    --green-light: #BDE0CC;
+    --orange: #D4A574;
+    --orange-light: #F0DCC8;
+
+    --bg: #F5F8FA;
+    --bg-card: #FFFFFF;
+    --border: #D8E4EC;
+    --shadow: 0 2px 12px rgba(40,70,100,0.06);
+    --shadow-lg: 0 8px 32px rgba(40,70,100,0.10);
+
+    --menstruation: #4A90B8;
+    --menstruation-light: #C5DDE8;
+    --menstruation-bg: #EDF4F8;
+    --follicular: #5BA3A0;
+    --follicular-light: #B5D5D3;
+    --follicular-bg: #EEF7F6;
+    --ovulation: #D4A574;
+    --ovulation-light: #F0DCC8;
+    --ovulation-bg: #FBF5EE;
+    --luteal: #6B8EAD;
+    --luteal-light: #B8CED8;
+    --luteal-bg: #EFF4F8;
+}

@@ -165,6 +165,73 @@
     </div>
     {{end}}
 
+    <!-- Year-at-a-Glance Calendar -->
+    {{if .YearMonths}}
+    <div class="section">
+        <h2>📅 Year at a Glance</h2>
+        <p class="section-subtitle">Your cycle patterns across the full year</p>
+        <div class="year-grid">
+            {{range .YearMonths}}
+            <div class="mini-month">
+                <div class="mini-month-name">{{.Name}}</div>
+                <div class="mini-cal-header">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div class="mini-cal-grid">
+                    {{range .Weeks}}
+                    {{range .}}
+                    <span class="mini-day{{if not .InMonth}} empty{{end}}{{if .IsPeriod}} period{{end}}{{if .IsPredicted}} predicted{{end}}{{if .IsToday}} today{{end}}">{{if .InMonth}}{{.Day}}{{end}}</span>
+                    {{end}}
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Journal Word Cloud -->
+    {{if .WordCloud}}
+    <div class="section">
+        <h2>💭 What's On Your Mind</h2>
+        <p class="section-subtitle">Most common words from your journal entries</p>
+        <div class="word-cloud">
+            {{range .WordCloud}}
+            <span class="cloud-word size-{{.Size}}">{{.Word}}</span>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Wellness Over Time -->
+    {{if .WellnessData}}
+    <div class="section">
+        <h2>💪 Wellness Over Time</h2>
+        <p class="section-subtitle">Your sleep, stress, and energy patterns — last 30 days</p>
+        <div class="wellness-chart">
+            <div class="wellness-legend">
+                <span class="wellness-legend-item legend-sleep">😴 Sleep</span>
+                <span class="wellness-legend-item legend-stress">😰 Stress</span>
+                <span class="wellness-legend-item legend-energy">⚡ Energy</span>
+            </div>
+            <div class="wellness-bars">
+                {{range .WellnessData}}
+                {{if or (ne .SleepQuality 0) (ne .StressLevel 0) (ne .EnergyLevel 0)}}
+                <div class="wellness-day" title="{{formatDateShort .Date}}">
+                    <div class="wellness-bar-group">
+                        <div class="w-bar sleep" style="height: {{multiply .SleepQuality 20}}%"></div>
+                        <div class="w-bar stress" style="height: {{multiply .StressLevel 20}}%"></div>
+                        <div class="w-bar energy" style="height: {{multiply .EnergyLevel 20}}%"></div>
+                    </div>
+                    <span class="w-date">{{formatDateShort .Date}}</span>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        </div>
+    </div>
+    {{end}}
+
     <!-- Symptom-Phase Correlation -->
     {{if .PhaseCorrelations}}
     <div class="section">

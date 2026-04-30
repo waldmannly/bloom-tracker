@@ -2,14 +2,107 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// ─── Rate Limiting ──────────────────────────────────────────────────────────
+
+type loginAttempt struct {
+	count    int
+	lastFail time.Time
+}
+
+var (
+	loginAttempts = make(map[string]*loginAttempt)
+	loginMu       sync.Mutex
+)
+
+const (
+	maxLoginAttempts  = 5
+	loginLockDuration = 15 * time.Minute
+)
+
+func checkLoginRateLimit(ip string) bool {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	attempt, exists := loginAttempts[ip]
+	if !exists {
+		return true
+	}
+	if time.Since(attempt.lastFail) > loginLockDuration {
+		delete(loginAttempts, ip)
+		return true
+	}
+	return attempt.count < maxLoginAttempts
+}
+
+func recordFailedLogin(ip string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	attempt, exists := loginAttempts[ip]
+	if !exists {
+		loginAttempts[ip] = &loginAttempt{count: 1, lastFail: time.Now()}
+		return
+	}
+	attempt.count++
+	attempt.lastFail = time.Now()
+}
+
+func clearFailedLogins(ip string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+	delete(loginAttempts, ip)
+}
+
+func getClientIP(r *http.Request) string {
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		return strings.SplitN(fwd, ",", 2)[0]
+	}
+	if fwd := r.Header.Get("X-Real-IP"); fwd != "" {
+		return fwd
+	}
+	return strings.SplitN(r.RemoteAddr, ":", 2)[0]
+}
+
+// ─── CSRF Protection ────────────────────────────────────────────────────────
+
+func generateCSRFToken(sessionToken string) string {
+	mac := hmac.New(sha256.New, sessionSecret)
+	mac.Write([]byte(sessionToken))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func validateCSRFToken(r *http.Request) bool {
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		return false
+	}
+	token := r.FormValue("csrf_token")
+	if token == "" {
+		token = r.Header.Get("X-CSRF-Token")
+	}
+	expected := generateCSRFToken(cookie.Value)
+	return hmac.Equal([]byte(token), []byte(expected))
+}
+
+func getCSRFToken(r *http.Request) string {
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		return ""
+	}
+	return generateCSRFToken(cookie.Value)
+}
 
 type contextKey string
 
@@ -47,7 +140,7 @@ func generateInviteCode() string {
 	return strings.ToUpper(hex.EncodeToString(b))
 }
 
-func createSessionCookie(w http.ResponseWriter, userID int64) error {
+func createSessionCookie(w http.ResponseWriter, r *http.Request, userID int64) error {
 	token := generateToken()
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
 
@@ -62,7 +155,7 @@ func createSessionCookie(w http.ResponseWriter, userID int64) error {
 		Expires:  expiresAt,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   false, // set true behind HTTPS in production
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
 	})
 	return nil
 }
@@ -93,6 +186,11 @@ func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
+		if r.Method == http.MethodPost && !validateCSRFToken(r) {
+			setFlash(w, "error", "Invalid form submission. Please try again.")
+			http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
+			return
+		}
 		ctx := context.WithValue(r.Context(), userContextKey, user)
 		next(w, r.WithContext(ctx))
 	}
@@ -114,6 +212,15 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip := getClientIP(r)
+	if !checkLoginRateLimit(ip) {
+		pd := newPageData(r)
+		pd.Flash = "Too many login attempts. Please try again in 15 minutes."
+		pd.FlashType = "error"
+		renderTemplate(w, r, "login", pd)
+		return
+	}
+
 	email := strings.TrimSpace(strings.ToLower(r.FormValue("email")))
 	password := r.FormValue("password")
 
@@ -127,6 +234,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := getUserByEmail(email)
 	if err != nil || !checkPassword(user.PasswordHash, password) {
+		recordFailedLogin(ip)
 		pd := newPageData(r)
 		pd.Flash = "Invalid email or password"
 		pd.FlashType = "error"
@@ -134,7 +242,9 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := createSessionCookie(w, user.ID); err != nil {
+	clearFailedLogins(ip)
+
+	if err := createSessionCookie(w, r, user.ID); err != nil {
 		pd := newPageData(r)
 		pd.Flash = "Something went wrong. Please try again."
 		pd.FlashType = "error"

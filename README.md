@@ -60,7 +60,7 @@ Don't want to install anything? We host a free instance you can use right now:
 ### Option 1: Docker (Recommended)
 
 ```bash
-git clone https://github.com/bloomtracker/bloom.git
+git clone https://github.com/waldmannly/bloom-tracker.git
 cd bloom
 cp .env.example .env
 docker compose up -d
@@ -71,7 +71,7 @@ Open **http://localhost:8080** and create your account.
 ### Option 2: Build from Source
 
 ```bash
-git clone https://github.com/bloomtracker/bloom.git
+git clone https://github.com/waldmannly/bloom-tracker.git
 cd bloom
 go build -o bloom .
 ./bloom
@@ -79,7 +79,7 @@ go build -o bloom .
 
 ### Option 3: Download Binary
 
-Grab the latest release from the [Releases](https://github.com/bloomtracker/bloom/releases) page. Run it. Done.
+Grab the latest release from the [Releases](https://github.com/waldmannly/bloom-tracker/releases) page. Run it. Done.
 
 ## ⚙️ Configuration
 
@@ -212,14 +212,14 @@ Pick whichever method you prefer:
 
 ```bash
 # Download the latest release (Linux example)
-curl -L https://github.com/bloomtracker/bloom/releases/latest/download/bloom-linux-amd64 -o bloom
+curl -L https://github.com/waldmannly/bloom-tracker/releases/latest/download/bloom-linux-amd64 -o bloom
 chmod +x bloom
 ```
 
 #### Option B — Docker
 
 ```bash
-git clone https://github.com/bloomtracker/bloom.git
+git clone https://github.com/waldmannly/bloom-tracker.git
 cd bloom
 cp .env.example .env        # edit .env if you want email or encryption
 docker compose up -d
@@ -232,7 +232,7 @@ Skip to [Step 4](#step-4-open-bloom) — Docker handles the rest.
 Requires [Go 1.21+](https://go.dev/dl/).
 
 ```bash
-git clone https://github.com/bloomtracker/bloom.git
+git clone https://github.com/waldmannly/bloom-tracker.git
 cd bloom
 go build -o bloom .
 ```

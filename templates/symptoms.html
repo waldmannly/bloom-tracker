@@ -8,6 +8,7 @@
 
 <div class="card">
     <form method="POST" action="/symptoms" class="symptom-form" id="symptom-form">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <div class="form-group">
             <label for="date">Date</label>
             <input type="date" id="date" name="date" value="{{formatDateInput .Today}}" required>
@@ -109,6 +110,7 @@
             </div>
             {{if .Notes}}<p class="symptom-notes">{{.Notes}}</p>{{end}}
             <form action="/delete-symptom" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                 <input type="hidden" name="symptom_id" value="{{.ID}}">
                 <button type="submit" class="btn btn-xs btn-danger" title="Delete">✕</button>
             </form>

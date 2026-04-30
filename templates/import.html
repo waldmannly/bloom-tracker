@@ -21,6 +21,7 @@
 
     <div class="card">
         <form method="POST" action="/import">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <div class="form-group">
                 <label for="periods">Enter period dates (one per line):</label>
                 <textarea id="periods" name="periods" class="import-textarea" rows="12" placeholder="Supported formats:

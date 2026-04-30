@@ -182,6 +182,85 @@ func handleEndPeriod(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
+func handleEditPeriod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+	user := getUserFromContext(r)
+
+	periodIDStr := r.FormValue("period_id")
+	periodID, err := strconv.ParseInt(periodIDStr, 10, 64)
+	if err != nil {
+		setFlash(w, "error", "Invalid period")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	// Verify ownership
+	if _, err := getPeriodByID(periodID, user.ID); err != nil {
+		setFlash(w, "error", "Period not found")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	startStr := r.FormValue("start_date")
+	startDate, err := time.Parse("2006-01-02", startStr)
+	if err != nil {
+		setFlash(w, "error", "Invalid start date")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	var endDate *time.Time
+	endStr := r.FormValue("end_date")
+	if endStr != "" {
+		t, err := time.Parse("2006-01-02", endStr)
+		if err == nil {
+			if t.Before(startDate) {
+				setFlash(w, "error", "End date cannot be before start date")
+				http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+				return
+			}
+			endDate = &t
+		}
+	}
+
+	if err := updatePeriod(periodID, startDate, endDate); err != nil {
+		setFlash(w, "error", "Could not update period")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	setFlash(w, "success", "Period updated! ✏️")
+	http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+}
+
+func handleDeletePeriod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+	user := getUserFromContext(r)
+
+	periodIDStr := r.FormValue("period_id")
+	periodID, err := strconv.ParseInt(periodIDStr, 10, 64)
+	if err != nil {
+		setFlash(w, "error", "Invalid period")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	if err := deletePeriod(periodID, user.ID); err != nil {
+		setFlash(w, "error", "Could not delete period")
+		http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+		return
+	}
+
+	setFlash(w, "success", "Period deleted")
+	http.Redirect(w, r, "/log-period", http.StatusSeeOther)
+}
+
 // ─── Symptoms ───────────────────────────────────────────────────────────────
 
 type symptomsData struct {
@@ -332,6 +411,8 @@ type settingsData struct {
 	PartnerNotify     bool
 	ShowFertility     bool
 	Pronouns          string
+	Theme             string
+	PhasePrefs        map[string]string
 	EncryptionEnabled bool
 }
 
@@ -348,6 +429,8 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			PartnerNotify:     user.PartnerNotify,
 			ShowFertility:     user.ShowFertility,
 			Pronouns:          user.Pronouns,
+			Theme:             user.Theme,
+			PhasePrefs:        getPhasePreferences(user.ID),
 			EncryptionEnabled: dbEncryptionEnabled,
 		}
 
@@ -382,13 +465,35 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 		pronouns = user.Pronouns
 	}
 
-	if err := updateUserSettings(user.ID, cycleLen, periodLen, showFertility, pronouns); err != nil {
+	theme := r.FormValue("theme")
+	if theme != "bloom" && theme != "ocean" {
+		theme = "bloom"
+	}
+
+	if err := updateUserSettings(user.ID, cycleLen, periodLen, showFertility, pronouns, theme); err != nil {
 		setFlash(w, "error", "Could not save settings")
 		http.Redirect(w, r, "/settings", http.StatusSeeOther)
 		return
 	}
 
 	setFlash(w, "success", "Settings saved!")
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func handlePhasePreferences(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
+	user := getUserFromContext(r)
+
+	phases := []string{"menstruation", "follicular", "ovulation", "luteal"}
+	for _, phase := range phases {
+		pref := strings.TrimSpace(r.FormValue("pref_" + phase))
+		savePhasePreference(user.ID, phase, pref)
+	}
+
+	setFlash(w, "success", "Phase preferences saved! 💛")
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
@@ -515,6 +620,9 @@ type trendsData struct {
 	AvgCycleLen       float64
 	HasData           bool
 	MaxCycleLen       int
+	YearMonths        []YearMonth
+	WordCloud         []WordFreq
+	WellnessData      []DailyReading
 }
 
 func handleTrends(w http.ResponseWriter, r *http.Request) {
@@ -528,6 +636,22 @@ func handleTrends(w http.ResponseWriter, r *http.Request) {
 
 	// BBT readings for trends (all available)
 	bbtReadings, _ := getDailyReadings(user.ID, 90)
+
+	// Wellness data: last 30 days, reversed to chronological order
+	wellnessReadings, _ := getDailyReadings(user.ID, 30)
+	for i, j := 0, len(wellnessReadings)-1; i < j; i, j = i+1, j-1 {
+		wellnessReadings[i], wellnessReadings[j] = wellnessReadings[j], wellnessReadings[i]
+	}
+
+	// Year-at-a-Glance calendar
+	var lastPeriodStart *time.Time
+	if lp, err := getLastPeriod(user.ID); err == nil {
+		lastPeriodStart = &lp.StartDate
+	}
+	yearMonths := generateYearCalendar(user.ID, user.CycleLength, user.PeriodLength, lastPeriodStart)
+
+	// Journal word cloud
+	wordCloud := getJournalWordCloud(user.ID, 40)
 
 	maxCycle := 0
 	for _, ct := range cycleTrends {
@@ -550,6 +674,9 @@ func handleTrends(w http.ResponseWriter, r *http.Request) {
 		AvgCycleLen:       getAverageCycleLength(user.ID),
 		HasData:           len(cycleTrends) > 0 || len(topSymptoms) > 0,
 		MaxCycleLen:       maxCycle,
+		YearMonths:        yearMonths,
+		WordCloud:         wordCloud,
+		WellnessData:      wellnessReadings,
 	}
 
 	renderTemplate(w, r, "trends", pd)

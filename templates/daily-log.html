@@ -8,6 +8,7 @@
 
 <div class="card">
     <form method="POST" action="/daily-log">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <div class="form-group">
             <label for="date">Date</label>
             <input type="date" id="date" name="date" value="{{formatDateInput .Today}}" required>
@@ -71,11 +72,11 @@
             <label>🌙 Sleep Quality</label>
             <div class="rating-selector" data-field="sleep_quality">
                 <input type="hidden" name="sleep_quality" value="">
-                <button type="button" class="rating-btn" data-value="1" title="Very Poor">1 😣</button>
-                <button type="button" class="rating-btn" data-value="2" title="Poor">2 😕</button>
-                <button type="button" class="rating-btn" data-value="3" title="Okay">3 😐</button>
-                <button type="button" class="rating-btn" data-value="4" title="Good">4 😊</button>
-                <button type="button" class="rating-btn" data-value="5" title="Excellent">5 ⭐</button>
+                <button type="button" class="rating-btn" data-value="1" title="Very Poor"><span class="rating-emoji">😣</span><span class="rating-label">Awful</span></button>
+                <button type="button" class="rating-btn" data-value="2" title="Poor"><span class="rating-emoji">😕</span><span class="rating-label">Poor</span></button>
+                <button type="button" class="rating-btn" data-value="3" title="Okay"><span class="rating-emoji">😐</span><span class="rating-label">Okay</span></button>
+                <button type="button" class="rating-btn" data-value="4" title="Good"><span class="rating-emoji">😊</span><span class="rating-label">Good</span></button>
+                <button type="button" class="rating-btn" data-value="5" title="Excellent"><span class="rating-emoji">⭐</span><span class="rating-label">Great</span></button>
             </div>
         </div>
 
@@ -83,11 +84,11 @@
             <label>😰 Stress Level</label>
             <div class="rating-selector" data-field="stress_level">
                 <input type="hidden" name="stress_level" value="">
-                <button type="button" class="rating-btn" data-value="1" title="Very Low">1 😌</button>
-                <button type="button" class="rating-btn" data-value="2" title="Low">2 🙂</button>
-                <button type="button" class="rating-btn" data-value="3" title="Moderate">3 😐</button>
-                <button type="button" class="rating-btn" data-value="4" title="High">4 😟</button>
-                <button type="button" class="rating-btn" data-value="5" title="Very High">5 😫</button>
+                <button type="button" class="rating-btn" data-value="1" title="Very Low"><span class="rating-emoji">😌</span><span class="rating-label">Calm</span></button>
+                <button type="button" class="rating-btn" data-value="2" title="Low"><span class="rating-emoji">🙂</span><span class="rating-label">Low</span></button>
+                <button type="button" class="rating-btn" data-value="3" title="Moderate"><span class="rating-emoji">😐</span><span class="rating-label">Medium</span></button>
+                <button type="button" class="rating-btn" data-value="4" title="High"><span class="rating-emoji">😟</span><span class="rating-label">High</span></button>
+                <button type="button" class="rating-btn" data-value="5" title="Very High"><span class="rating-emoji">😫</span><span class="rating-label">Extreme</span></button>
             </div>
         </div>
 
@@ -95,11 +96,11 @@
             <label>⚡ Energy Level</label>
             <div class="rating-selector" data-field="energy_level">
                 <input type="hidden" name="energy_level" value="">
-                <button type="button" class="rating-btn" data-value="1" title="Exhausted">1 💤</button>
-                <button type="button" class="rating-btn" data-value="2" title="Low">2 😮‍💨</button>
-                <button type="button" class="rating-btn" data-value="3" title="Moderate">3 🙂</button>
-                <button type="button" class="rating-btn" data-value="4" title="Good">4 💪</button>
-                <button type="button" class="rating-btn" data-value="5" title="High Energy">5 🔥</button>
+                <button type="button" class="rating-btn" data-value="1" title="Exhausted"><span class="rating-emoji">💤</span><span class="rating-label">Drained</span></button>
+                <button type="button" class="rating-btn" data-value="2" title="Low"><span class="rating-emoji">😕</span><span class="rating-label">Low</span></button>
+                <button type="button" class="rating-btn" data-value="3" title="Moderate"><span class="rating-emoji">🙂</span><span class="rating-label">Okay</span></button>
+                <button type="button" class="rating-btn" data-value="4" title="Good"><span class="rating-emoji">💪</span><span class="rating-label">Good</span></button>
+                <button type="button" class="rating-btn" data-value="5" title="High Energy"><span class="rating-emoji">🔥</span><span class="rating-label">Fired Up</span></button>
             </div>
         </div>
 
@@ -143,6 +144,7 @@
             </div>
             {{if .Notes}}<p class="reading-notes">{{.Notes}}</p>{{end}}
             <form action="/delete-daily-log" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                 <input type="hidden" name="reading_id" value="{{.ID}}">
                 <button type="submit" class="btn btn-xs btn-danger" title="Delete">✕</button>
             </form>

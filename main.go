@@ -82,10 +82,13 @@ func main() {
 	mux.HandleFunc("/dashboard", requireAuth(handleDashboard))
 	mux.HandleFunc("/log-period", requireAuth(handleLogPeriod))
 	mux.HandleFunc("/end-period", requireAuth(handleEndPeriod))
+	mux.HandleFunc("/edit-period", requireAuth(handleEditPeriod))
+	mux.HandleFunc("/delete-period", requireAuth(handleDeletePeriod))
 	mux.HandleFunc("/symptoms", requireAuth(handleSymptoms))
 	mux.HandleFunc("/delete-symptom", requireAuth(handleDeleteSymptom))
 	mux.HandleFunc("/calendar", requireAuth(handleCalendar))
 	mux.HandleFunc("/settings", requireAuth(handleSettings))
+	mux.HandleFunc("/phase-preferences", requireAuth(handlePhasePreferences))
 	mux.HandleFunc("/partner/invite", requireAuth(handlePartnerInvite))
 	mux.HandleFunc("/notifications", requireAuth(handleNotifications))
 	mux.HandleFunc("/trends", requireAuth(handleTrends))
@@ -191,6 +194,7 @@ type PageData struct {
 	IsPartner  bool
 	Flash      string
 	FlashType  string
+	CSRFToken  string
 	Data       interface{}
 }
 
@@ -202,6 +206,7 @@ func newPageData(r *http.Request) *PageData {
 		pd.IsLoggedIn = true
 		pd.IsPartner = user.Role == "partner"
 	}
+	pd.CSRFToken = getCSRFToken(r)
 	if cookie, err := r.Cookie("flash"); err == nil {
 		parts := strings.SplitN(cookie.Value, "|", 2)
 		if len(parts) == 2 {

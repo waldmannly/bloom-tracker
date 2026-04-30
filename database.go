@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -24,6 +26,7 @@ type User struct {
 	PartnerNotify bool
 	ShowFertility bool   // whether to display fertile window/ovulation info
 	Pronouns      string // "she/her", "he/him", "they/them"
+	Theme         string // "bloom" or "ocean"
 	CreatedAt     string
 }
 
@@ -109,6 +112,7 @@ func createSchema() error {
 		last_notified_phase TEXT DEFAULT '',
 		show_fertility INTEGER NOT NULL DEFAULT 1,
 		pronouns TEXT NOT NULL DEFAULT 'she/her',
+		theme TEXT NOT NULL DEFAULT 'bloom',
 		created_at TEXT DEFAULT (datetime('now'))
 	);
 
@@ -174,6 +178,14 @@ func createSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, sent_at DESC);
 	CREATE INDEX IF NOT EXISTS idx_journal_user ON journal_entries(user_id, date DESC);
 	CREATE INDEX IF NOT EXISTS idx_daily_readings_user ON daily_readings(user_id, date DESC);
+
+	CREATE TABLE IF NOT EXISTS phase_preferences (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		phase TEXT NOT NULL,
+		preferences TEXT DEFAULT '',
+		UNIQUE(user_id, phase)
+	);
 	`
 	_, err := db.Exec(schema)
 	if err != nil {
@@ -189,6 +201,7 @@ func createSchema() error {
 		"ALTER TABLE daily_readings ADD COLUMN sleep_quality INTEGER",
 		"ALTER TABLE daily_readings ADD COLUMN stress_level INTEGER",
 		"ALTER TABLE daily_readings ADD COLUMN energy_level INTEGER",
+		"ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'bloom'",
 	}
 	for _, m := range migrations {
 		db.Exec(m) // ignore errors (column already exists)
@@ -211,14 +224,14 @@ func createUser(email, name, passwordHash, role string) (int64, error) {
 
 func getUserByEmail(email string) (*User, error) {
 	return scanUser(db.QueryRow(
-		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns FROM users WHERE email = ?",
+		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns, theme FROM users WHERE email = ?",
 		email,
 	))
 }
 
 func getUserByID(id int64) (*User, error) {
 	return scanUser(db.QueryRow(
-		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns FROM users WHERE id = ?",
+		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns, theme FROM users WHERE id = ?",
 		id,
 	))
 }
@@ -228,8 +241,9 @@ func scanUser(row *sql.Row) (*User, error) {
 	var partnerOf sql.NullInt64
 	var partnerCode sql.NullString
 	var pronouns sql.NullString
+	var theme sql.NullString
 	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Role,
-		&partnerOf, &partnerCode, &u.CycleLength, &u.PeriodLength, &u.PartnerNotify, &u.ShowFertility, &pronouns)
+		&partnerOf, &partnerCode, &u.CycleLength, &u.PeriodLength, &u.PartnerNotify, &u.ShowFertility, &pronouns, &theme)
 	if err != nil {
 		return nil, err
 	}
@@ -243,13 +257,42 @@ func scanUser(row *sql.Row) (*User, error) {
 	if pronouns.Valid && pronouns.String != "" {
 		u.Pronouns = pronouns.String
 	}
+	u.Theme = "bloom"
+	if theme.Valid && theme.String != "" {
+		u.Theme = theme.String
+	}
 	return &u, nil
 }
 
-func updateUserSettings(id int64, cycleLength, periodLength int, showFertility bool, pronouns string) error {
+func updateUserSettings(id int64, cycleLength, periodLength int, showFertility bool, pronouns, theme string) error {
 	_, err := db.Exec(
-		"UPDATE users SET cycle_length = ?, period_length = ?, show_fertility = ?, pronouns = ? WHERE id = ?",
-		cycleLength, periodLength, showFertility, pronouns, id,
+		"UPDATE users SET cycle_length = ?, period_length = ?, show_fertility = ?, pronouns = ?, theme = ? WHERE id = ?",
+		cycleLength, periodLength, showFertility, pronouns, theme, id,
+	)
+	return err
+}
+
+func getPhasePreferences(userID int64) map[string]string {
+	result := map[string]string{}
+	rows, err := db.Query("SELECT phase, preferences FROM phase_preferences WHERE user_id = ?", userID)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var phase, prefs string
+		rows.Scan(&phase, &prefs)
+		result[phase] = prefs
+	}
+	return result
+}
+
+func savePhasePreference(userID int64, phase, preferences string) error {
+	_, err := db.Exec(`
+		INSERT INTO phase_preferences (user_id, phase, preferences)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id, phase) DO UPDATE SET preferences=excluded.preferences`,
+		userID, phase, preferences,
 	)
 	return err
 }
@@ -261,7 +304,7 @@ func setPartnerCode(userID int64, code string) error {
 
 func getUserByPartnerCode(code string) (*User, error) {
 	return scanUser(db.QueryRow(
-		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns FROM users WHERE partner_code = ? AND role = 'owner'",
+		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns, theme FROM users WHERE partner_code = ? AND role = 'owner'",
 		code,
 	))
 }
@@ -273,7 +316,7 @@ func linkPartner(partnerID, ownerID int64) error {
 
 func getPartnerForOwner(ownerID int64) (*User, error) {
 	return scanUser(db.QueryRow(
-		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns FROM users WHERE partner_of = ?",
+		"SELECT id, email, name, password_hash, role, partner_of, partner_code, cycle_length, period_length, partner_notify, show_fertility, pronouns, theme FROM users WHERE partner_of = ?",
 		ownerID,
 	))
 }
@@ -321,6 +364,45 @@ func endPeriod(periodID int64, endDate time.Time) error {
 		endDate.Format("2006-01-02"), periodID,
 	)
 	return err
+}
+
+func updatePeriod(periodID int64, startDate time.Time, endDate *time.Time) error {
+	if endDate != nil {
+		_, err := db.Exec(
+			"UPDATE periods SET start_date = ?, end_date = ? WHERE id = ?",
+			startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), periodID,
+		)
+		return err
+	}
+	_, err := db.Exec(
+		"UPDATE periods SET start_date = ?, end_date = NULL WHERE id = ?",
+		startDate.Format("2006-01-02"), periodID,
+	)
+	return err
+}
+
+func deletePeriod(periodID, userID int64) error {
+	_, err := db.Exec("DELETE FROM periods WHERE id = ? AND user_id = ?", periodID, userID)
+	return err
+}
+
+func getPeriodByID(periodID, userID int64) (*Period, error) {
+	var p Period
+	var startStr string
+	var endStr sql.NullString
+	err := db.QueryRow(
+		"SELECT id, user_id, start_date, end_date FROM periods WHERE id = ? AND user_id = ?",
+		periodID, userID,
+	).Scan(&p.ID, &p.UserID, &startStr, &endStr)
+	if err != nil {
+		return nil, err
+	}
+	p.StartDate = parseDate(startStr)
+	if endStr.Valid {
+		t := parseDate(endStr.String)
+		p.EndDate = &t
+	}
+	return &p, nil
 }
 
 func getActivePeriod(userID int64) (*Period, error) {
@@ -744,12 +826,18 @@ func deleteJournalEntry(entryID, userID int64) error {
 // ─── Account deletion ───────────────────────────────────────────────────────
 
 func deleteUserAccount(userID int64) error {
-	// Unlink any partners first
 	db.Exec("UPDATE users SET partner_of = NULL WHERE partner_of = ?", userID)
-	// Delete all related data
-	tables := []string{"daily_readings", "journal_entries", "notifications", "symptoms", "periods", "sessions"}
-	for _, t := range tables {
-		if _, err := db.Exec("DELETE FROM "+t+" WHERE user_id = ?", userID); err != nil {
+	queries := []string{
+		"DELETE FROM phase_preferences WHERE user_id = ?",
+		"DELETE FROM daily_readings WHERE user_id = ?",
+		"DELETE FROM journal_entries WHERE user_id = ?",
+		"DELETE FROM notifications WHERE user_id = ?",
+		"DELETE FROM symptoms WHERE user_id = ?",
+		"DELETE FROM periods WHERE user_id = ?",
+		"DELETE FROM sessions WHERE user_id = ?",
+	}
+	for _, q := range queries {
+		if _, err := db.Exec(q, userID); err != nil {
 			return err
 		}
 	}
@@ -980,6 +1068,194 @@ func getAllDailyReadings(userID int64) ([]DailyReading, error) {
 func deleteDailyReading(readingID, userID int64) error {
 	_, err := db.Exec("DELETE FROM daily_readings WHERE id = ? AND user_id = ?", readingID, userID)
 	return err
+}
+
+// ─── Year-at-a-Glance Calendar ──────────────────────────────────────────────
+
+type YearMonth struct {
+	Name  string
+	Year  int
+	Weeks [][]YearDay
+}
+
+type YearDay struct {
+	Day         int
+	InMonth     bool
+	IsPeriod    bool
+	IsPredicted bool
+	IsToday     bool
+	Phase       string
+}
+
+func generateYearCalendar(userID int64, cycleLength, periodLength int, lastPeriodStart *time.Time) []YearMonth {
+	now := time.Now()
+	year := now.Year()
+	today := midnight(now)
+
+	// Load all periods for this year
+	yearStart := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local)
+	yearEnd := time.Date(year, 12, 31, 0, 0, 0, 0, time.Local)
+	periods, _ := getPeriodsInRange(userID, yearStart.AddDate(0, 0, -40), yearEnd)
+
+	periodDays := make(map[string]bool)
+	for _, p := range periods {
+		endDate := p.StartDate.AddDate(0, 0, periodLength-1)
+		if p.EndDate != nil {
+			endDate = *p.EndDate
+		}
+		for d := p.StartDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+			periodDays[d.Format("2006-01-02")] = true
+		}
+	}
+
+	var months []YearMonth
+	for m := 1; m <= 12; m++ {
+		firstOfMonth := time.Date(year, time.Month(m), 1, 0, 0, 0, 0, time.Local)
+		lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+
+		gridStart := firstOfMonth.AddDate(0, 0, -int(firstOfMonth.Weekday()))
+		gridEnd := lastOfMonth.AddDate(0, 0, 6-int(lastOfMonth.Weekday()))
+
+		var weeks [][]YearDay
+		current := gridStart
+		for !current.After(gridEnd) {
+			var week []YearDay
+			for i := 0; i < 7; i++ {
+				key := current.Format("2006-01-02")
+				inMonth := current.Month() == time.Month(m)
+				day := YearDay{
+					Day:      current.Day(),
+					InMonth:  inMonth,
+					IsPeriod: periodDays[key],
+					IsToday:  current.Equal(today),
+				}
+				if lastPeriodStart != nil && inMonth {
+					info := calculateCycleInfo(*lastPeriodStart, cycleLength, periodLength, current)
+					day.Phase = info.Phase
+					if info.Phase == "menstruation" && !day.IsPeriod && current.After(today) {
+						day.IsPredicted = true
+					}
+				}
+				week = append(week, day)
+				current = current.AddDate(0, 0, 1)
+			}
+			weeks = append(weeks, week)
+		}
+
+		months = append(months, YearMonth{
+			Name:  firstOfMonth.Format("January"),
+			Year:  year,
+			Weeks: weeks,
+		})
+	}
+	return months
+}
+
+// ─── Journal Word Cloud ─────────────────────────────────────────────────────
+
+type WordFreq struct {
+	Word  string
+	Count int
+	Size  int // CSS font size class 1-5
+}
+
+func getJournalWordCloud(userID int64, maxWords int) []WordFreq {
+	stopWords := map[string]bool{
+		"the": true, "a": true, "an": true, "and": true, "or": true, "but": true,
+		"in": true, "on": true, "at": true, "to": true, "for": true, "of": true,
+		"is": true, "it": true, "was": true, "be": true, "been": true, "being": true,
+		"have": true, "has": true, "had": true, "do": true, "does": true, "did": true,
+		"will": true, "would": true, "could": true, "should": true, "may": true, "can": true,
+		"this": true, "that": true, "these": true, "those": true, "with": true, "from": true,
+		"not": true, "no": true, "so": true, "if": true, "my": true, "me": true,
+		"i": true, "we": true, "you": true, "he": true, "she": true, "they": true,
+		"them": true, "its": true, "our": true, "your": true, "her": true, "his": true,
+		"just": true, "very": true, "really": true, "also": true, "about": true,
+		"than": true, "some": true, "more": true, "much": true, "too": true,
+		"then": true, "now": true, "well": true, "like": true, "get": true, "got": true,
+		"am": true, "are": true, "were": true, "what": true, "when": true, "where": true,
+		"which": true, "who": true, "how": true, "all": true, "each": true, "both": true,
+		"few": true, "many": true, "most": true, "other": true, "up": true, "out": true,
+		"into": true, "over": true, "after": true, "before": true, "between": true,
+		"under": true, "again": true, "once": true, "only": true, "same": true,
+		"here": true, "there": true, "why": true, "because": true, "during": true,
+		"until": true, "while": true, "day": true, "today": true, "feel": true,
+		"feeling": true, "felt": true, "bit": true, "lot": true,
+	}
+
+	entries, err := getJournalEntries(userID, 10000)
+	if err != nil || len(entries) == 0 {
+		return nil
+	}
+
+	counts := make(map[string]int)
+	for _, e := range entries {
+		text := strings.ToLower(e.Content + " " + e.Title)
+		// Remove non-alpha characters except spaces
+		var cleaned strings.Builder
+		for _, ch := range text {
+			if (ch >= 'a' && ch <= 'z') || ch == ' ' {
+				cleaned.WriteRune(ch)
+			} else {
+				cleaned.WriteRune(' ')
+			}
+		}
+		words := strings.Fields(cleaned.String())
+		for _, w := range words {
+			if len(w) < 3 || stopWords[w] {
+				continue
+			}
+			counts[w]++
+		}
+	}
+
+	if len(counts) == 0 {
+		return nil
+	}
+
+	// Sort by count descending
+	type kv struct {
+		k string
+		v int
+	}
+	var sorted []kv
+	for k, v := range counts {
+		sorted = append(sorted, kv{k, v})
+	}
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].v > sorted[j].v })
+
+	if len(sorted) > maxWords {
+		sorted = sorted[:maxWords]
+	}
+
+	maxCount := sorted[0].v
+	var result []WordFreq
+	for _, s := range sorted {
+		size := 1
+		if maxCount > 1 {
+			ratio := float64(s.v) / float64(maxCount)
+			switch {
+			case ratio > 0.8:
+				size = 5
+			case ratio > 0.6:
+				size = 4
+			case ratio > 0.35:
+				size = 3
+			case ratio > 0.15:
+				size = 2
+			}
+		}
+		result = append(result, WordFreq{Word: s.k, Count: s.v, Size: size})
+	}
+
+	// Shuffle for visual variety (deterministic per day)
+	day := time.Now().YearDay()
+	for i := len(result) - 1; i > 0; i-- {
+		j := (i * day) % (i + 1)
+		result[i], result[j] = result[j], result[i]
+	}
+
+	return result
 }
 
 func scanDailyReadings(rows *sql.Rows) ([]DailyReading, error) {
