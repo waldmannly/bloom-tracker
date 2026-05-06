@@ -245,8 +245,10 @@ input:focus, textarea:focus, select:focus {
 .auth-page {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 2rem;
     padding-top: 2rem;
+    flex-wrap: wrap;
 }
 
 .auth-card {
@@ -255,8 +257,30 @@ input:focus, textarea:focus, select:focus {
     padding: 2.5rem;
     box-shadow: var(--shadow-lg);
     width: 100%;
-    max-width: 440px;
+    max-width: 420px;
     text-align: center;
+}
+
+.auth-card-alt {
+    background: linear-gradient(135deg, #f0faf9, #f8fffe);
+    border: 1.5px solid #b2dfdb;
+    border-radius: var(--radius);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.auth-card-alt h2 { font-size: 1.3rem; margin-bottom: 0.75rem; }
+.auth-card-alt p { color: var(--text-light); font-size: 0.92rem; line-height: 1.6; margin-bottom: 1rem; }
+.auth-card-alt .local-features { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.auth-card-alt .local-features li { padding: 0.5rem 0; font-size: 0.88rem; color: var(--text); border-bottom: 1px solid #e0f2f1; display: flex; align-items: center; gap: 0.5rem; }
+.auth-card-alt .local-features li:last-child { border-bottom: none; }
+
+@media (max-width: 860px) {
+    .auth-page { flex-direction: column; align-items: center; }
+    .auth-card-alt { max-width: 420px; }
 }
 
 .auth-card h1 { margin-bottom: 0.25rem; font-size: 1.5rem; }
