@@ -1,212 +1,330 @@
-{{define "title"}}Local-Only Tracker — Bloom{{end}}
+{{define "title"}}Bloom — Local Mode{{end}}
 {{define "content"}}
-<div class="local-mode-page">
-    <section class="local-hero">
-        <h1>🔒 Local-Only Tracker</h1>
-        <p><strong>Zero server contact.</strong> Your data never leaves this device — encrypted at rest with your passphrase using AES-256-GCM.</p>
-        <p class="form-hint">Works offline after first visit. Tap your browser menu → "Add to Home Screen" to install as an app.</p>
-    </section>
+<div id="local-app">
 
-    <section class="card" style="border-left: 4px solid #2a9d8f;" id="local-getting-started">
-        <h2>🚀 Getting Started</h2>
-        <ol style="line-height: 2; padding-left: 1.25rem;">
-            <li><strong>Create your passphrase</strong> below — pick something strong (8+ characters). This encrypts all your data.</li>
-            <li><strong>Log your cycle</strong> — add period dates, symptoms, and journal entries.</li>
-            <li><strong>Install the app</strong> — on your phone, tap ⋮ menu → "Add to Home Screen" (Android) or Share → "Add to Home Screen" (iOS).</li>
-        </ol>
-        <p style="margin-top: 0.75rem;"><strong>⚠️ Remember your passphrase!</strong> There's no recovery — if you forget it, your data can't be unlocked. Write it down somewhere safe.</p>
-    </section>
+    <!-- Lock Screen -->
+    <div id="lock-screen" class="local-lock-screen">
+        <div class="lock-content">
+            <div class="hero-icon">🌸</div>
+            <h1>Bloom</h1>
+            <p class="hero-tagline">Private period tracking. Encrypted on your device.</p>
 
-    <section class="card security-panel">
-        <h2>🛡️ Device Encryption</h2>
-        <p class="card-desc">All data is encrypted with your passphrase before being saved to this browser. Without the passphrase, the stored data is unreadable — even with physical device access. Your passphrase is never stored or sent anywhere.</p>
-
-        <div id="local-crypto-status" class="form-hint"></div>
-
-        <form id="local-setup-form" class="form-stack" style="display:none;">
-            <div class="form-group">
-                <label for="local-passphrase">Create Passphrase</label>
-                <input type="password" id="local-passphrase" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
+            <div id="lock-setup" style="display:none;">
+                <p style="margin:1rem 0;">Create a passphrase to encrypt your data. <strong>Don't forget it — there's no recovery.</strong></p>
+                <form id="setup-form" class="form-stack">
+                    <div class="form-group">
+                        <label for="setup-pass">Passphrase (8+ characters)</label>
+                        <input type="password" id="setup-pass" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="setup-confirm">Confirm Passphrase</label>
+                        <input type="password" id="setup-confirm" minlength="8" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Create Encrypted Vault</button>
+                </form>
             </div>
-            <div class="form-group">
-                <label for="local-passphrase-confirm">Confirm Passphrase</label>
-                <input type="password" id="local-passphrase-confirm" minlength="8" autocomplete="new-password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Enable Encryption</button>
-        </form>
 
-        <form id="local-unlock-form" class="form-stack" style="display:none;">
-            <div class="form-group">
-                <label for="local-unlock-passphrase">Unlock Passphrase</label>
-                <input type="password" id="local-unlock-passphrase" autocomplete="current-password" required>
+            <div id="lock-unlock" style="display:none;">
+                <form id="unlock-form" class="form-stack" style="margin-top:1rem;">
+                    <div class="form-group">
+                        <label for="unlock-pass">Passphrase</label>
+                        <input type="password" id="unlock-pass" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Unlock</button>
+                </form>
             </div>
-            <button type="submit" class="btn btn-primary">Unlock Local Data</button>
-        </form>
 
-        <div class="quick-actions" id="local-security-actions" style="display:none;">
-            <button type="button" id="local-lock-btn" class="btn btn-outline">🔒 Lock</button>
-            <button type="button" id="local-change-passphrase-btn" class="btn btn-outline">🔑 Change Passphrase</button>
+            <div id="lock-error" class="form-hint" style="color:#e74c3c; margin-top:0.5rem;"></div>
+
+            <div style="margin-top:2rem; font-size:0.85rem; color:#888;">
+                <p>🔐 AES-256-GCM · PBKDF2 210k iterations · Zero server contact</p>
+                <p style="margin-top:0.5rem;">Works offline. <a href="/privacy">Privacy details →</a></p>
+            </div>
         </div>
-    </section>
+    </div>
 
-    <div id="local-app-content" style="display:none;">
-    <section class="card local-summary" id="local-summary"></section>
+    <!-- Main App (hidden until unlocked) -->
+    <div id="app-main" style="display:none;">
 
-    <section class="card">
-        <h2>Cycle Settings</h2>
-        <p class="card-desc">These values are only stored locally on this device.</p>
-        <form id="local-profile-form" class="form-stack">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="local-cycle-length">Cycle Length (days)</label>
-                    <input type="number" id="local-cycle-length" min="20" max="45" value="28" required>
+        <!-- Navigation Tabs -->
+        <nav class="local-nav">
+            <button class="local-nav-btn active" data-tab="dashboard">🌸</button>
+            <button class="local-nav-btn" data-tab="log-period">🩸</button>
+            <button class="local-nav-btn" data-tab="symptoms">📝</button>
+            <button class="local-nav-btn" data-tab="journal">📔</button>
+            <button class="local-nav-btn" data-tab="calendar">📅</button>
+            <button class="local-nav-btn" data-tab="trends">📊</button>
+            <button class="local-nav-btn" data-tab="settings">⚙️</button>
+        </nav>
+
+        <!-- ═══ DASHBOARD ═══ -->
+        <section id="tab-dashboard" class="local-tab active">
+            <div class="dashboard">
+                <div id="dash-empty" class="empty-state" style="display:none;">
+                    <div class="empty-icon">🌸</div>
+                    <h2>Welcome to Bloom!</h2>
+                    <p>Log your first period to start seeing cycle predictions and phase tracking.</p>
+                    <button class="btn btn-primary btn-lg" onclick="switchTab('log-period')">Log Your First Period</button>
                 </div>
-                <div class="form-group">
-                    <label for="local-period-length">Period Length (days)</label>
-                    <input type="number" id="local-period-length" min="2" max="10" value="5" required>
+                <div id="dash-content" style="display:none;">
+                    <div id="dash-phase-hero" class="phase-hero"></div>
+                    <div id="dash-stats" class="stats-grid"></div>
+                    <div id="dash-active-period"></div>
+                    <div id="dash-encouragement" class="encouragement-card"></div>
+                    <div class="quick-actions">
+                        <button class="btn btn-primary" onclick="switchTab('log-period')">🩸 Log Period</button>
+                        <button class="btn btn-secondary" onclick="switchTab('symptoms')">📝 Log Symptoms</button>
+                        <button class="btn btn-accent" onclick="switchTab('calendar')">📅 Calendar</button>
+                    </div>
+                    <div id="dash-wellness" class="section wellness-section"></div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-accent">Save Local Settings</button>
-        </form>
-    </section>
+        </section>
 
-    <section class="card">
-        <h2>Log Period</h2>
-        <form id="local-period-form" class="form-stack">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="local-period-date">Start Date</label>
-                    <input type="date" id="local-period-date" required>
-                </div>
-                <div class="form-group">
-                    <label for="local-period-notes">Notes</label>
-                    <input type="text" id="local-period-notes" placeholder="Optional">
-                </div>
+        <!-- ═══ LOG PERIOD ═══ -->
+        <section id="tab-log-period" class="local-tab">
+            <div class="page-header">
+                <h1>🩸 Log Period</h1>
+                <p>Record when your period starts and ends.</p>
             </div>
-            <button type="submit" class="btn btn-primary">Add Period Start</button>
-        </form>
-        <div id="local-period-list" class="local-list"></div>
-    </section>
+            <div id="period-active-banner"></div>
+            <div class="card">
+                <form id="period-form" class="form-stack">
+                    <div class="form-group">
+                        <label for="period-start">Period Start Date</label>
+                        <input type="date" id="period-start" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Log Period Start</button>
+                </form>
+            </div>
+            <div class="section">
+                <h2>📋 Period History</h2>
+                <div id="period-history" class="history-list"></div>
+            </div>
+        </section>
 
-    <section class="card">
-        <h2>Log Symptom</h2>
-        <form id="local-symptom-form" class="form-stack">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="local-symptom-date">Date</label>
-                    <input type="date" id="local-symptom-date" required>
+        <!-- ═══ SYMPTOMS ═══ -->
+        <section id="tab-symptoms" class="local-tab">
+            <div class="page-header">
+                <h1>📝 Symptom Tracker</h1>
+                <p>Log how you're feeling. Select multiple symptoms at once.</p>
+            </div>
+            <div class="card">
+                <form id="symptom-form" class="symptom-form">
+                    <div class="form-group">
+                        <label for="sym-date">Date</label>
+                        <input type="date" id="sym-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <div class="pill-group" id="sym-categories">
+                            <button type="button" class="pill active" data-cat="physical">💪 Physical</button>
+                            <button type="button" class="pill" data-cat="emotional">💜 Emotional</button>
+                            <button type="button" class="pill" data-cat="flow">💧 Flow</button>
+                            <button type="button" class="pill" data-cat="other">📌 Other</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Symptoms</label>
+                        <div id="sym-pills"></div>
+                        <div id="sym-selected" class="selected-symptoms" style="display:none;">
+                            <strong>Selected:</strong> <span id="sym-selected-list"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="sym-severity">Severity</label>
+                        <div class="severity-control">
+                            <input type="range" id="sym-severity" min="1" max="5" value="3">
+                            <div class="severity-labels">
+                                <span>Mild</span><span>Moderate</span><span>Severe</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="sym-notes">Notes (optional)</label>
+                        <textarea id="sym-notes" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Symptoms</button>
+                </form>
+            </div>
+            <div class="section">
+                <h2>Recent Symptoms</h2>
+                <div id="symptom-history"></div>
+            </div>
+        </section>
+
+        <!-- ═══ JOURNAL ═══ -->
+        <section id="tab-journal" class="local-tab">
+            <div class="page-header">
+                <h1>📔 Journal</h1>
+                <p>A private space for your thoughts and feelings.</p>
+            </div>
+            <div class="card journal-form-card">
+                <h2>✏️ New Entry</h2>
+                <form id="journal-form" class="form-stack">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="jrn-date">Date</label>
+                            <input type="date" id="jrn-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mood</label>
+                            <div class="mood-picker" id="jrn-moods">
+                                <button type="button" class="mood-option" data-mood="😊">😊</button>
+                                <button type="button" class="mood-option" data-mood="😌">😌</button>
+                                <button type="button" class="mood-option active" data-mood="😐">😐</button>
+                                <button type="button" class="mood-option" data-mood="😔">😔</button>
+                                <button type="button" class="mood-option" data-mood="😢">😢</button>
+                                <button type="button" class="mood-option" data-mood="😤">😤</button>
+                                <button type="button" class="mood-option" data-mood="🥰">🥰</button>
+                                <button type="button" class="mood-option" data-mood="💪">💪</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="jrn-title">Title (optional)</label>
+                        <input type="text" id="jrn-title" placeholder="What's on your mind?" maxlength="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="jrn-content">Write freely...</label>
+                        <textarea id="jrn-content" rows="5" placeholder="How are you feeling today? No one sees this but you. 💛"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Entry 📔</button>
+                </form>
+            </div>
+            <div class="section">
+                <h2>📖 Past Entries</h2>
+                <div id="journal-history" class="journal-timeline"></div>
+            </div>
+        </section>
+
+        <!-- ═══ CALENDAR ═══ -->
+        <section id="tab-calendar" class="local-tab">
+            <div class="page-header">
+                <h1>📅 Cycle Calendar</h1>
+            </div>
+            <div class="calendar-nav">
+                <button class="btn btn-outline" id="cal-prev">← Prev</button>
+                <h2 class="calendar-title" id="cal-title"></h2>
+                <button class="btn btn-outline" id="cal-next">Next →</button>
+            </div>
+            <div class="calendar-card">
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="legend-dot period"></span> Period</span>
+                    <span class="legend-item"><span class="legend-dot predicted"></span> Predicted</span>
+                    <span class="legend-item"><span class="legend-dot ovulation"></span> Ovulation</span>
+                    <span class="legend-item"><span class="legend-dot fertile"></span> Fertile</span>
+                    <span class="legend-item"><span class="legend-dot symptom"></span> Symptoms</span>
                 </div>
+                <table class="calendar-table">
+                    <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
+                    <tbody id="cal-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ═══ TRENDS ═══ -->
+        <section id="tab-trends" class="local-tab">
+            <div class="page-header">
+                <h1>📊 Your Trends</h1>
+                <p>Patterns and insights from your cycle history</p>
+            </div>
+            <div id="trends-empty" class="empty-state" style="display:none;">
+                <div class="empty-icon">📊</div>
+                <h2>Not Enough Data Yet</h2>
+                <p>Log at least two periods to start seeing trends.</p>
+            </div>
+            <div id="trends-content" style="display:none;">
+                <div id="trends-stats" class="stats-grid"></div>
+                <div id="trends-cycle-chart" class="section"></div>
+                <div id="trends-symptom-chart" class="section"></div>
+            </div>
+        </section>
+
+        <!-- ═══ SETTINGS ═══ -->
+        <section id="tab-settings" class="local-tab">
+            <div class="page-header">
+                <h1>⚙️ Settings</h1>
+            </div>
+
+            <div class="card">
+                <h2>Cycle Settings</h2>
+                <form id="settings-form" class="form-stack">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="set-cycle-len">Average Cycle Length (days)</label>
+                            <input type="number" id="set-cycle-len" min="20" max="45" value="28">
+                            <span class="form-hint">Most cycles are 24–35 days.</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="set-period-len">Average Period Length (days)</label>
+                            <input type="number" id="set-period-len" min="1" max="10" value="5">
+                            <span class="form-hint">Usually 3–7 days.</span>
+                        </div>
+                    </div>
+                    <label class="toggle-row">
+                        <span class="toggle-label">
+                            <strong>🌿 Show fertility &amp; ovulation info</strong>
+                        </span>
+                        <input type="checkbox" id="set-fertility" class="toggle-check" checked>
+                        <span class="toggle-switch"></span>
+                    </label>
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>🔐 Security</h2>
                 <div class="form-group">
-                    <label for="local-symptom-category">Category</label>
-                    <select id="local-symptom-category">
-                        <option value="physical">Physical</option>
-                        <option value="mood">Mood</option>
-                        <option value="energy">Energy</option>
-                        <option value="flow">Flow</option>
+                    <label>Auto-Lock Timer</label>
+                    <select id="set-autolock" class="form-select">
+                        <option value="2">2 minutes</option>
+                        <option value="5" selected>5 minutes</option>
+                        <option value="10">10 minutes</option>
+                        <option value="30">30 minutes</option>
+                        <option value="0">Never</option>
                     </select>
+                    <span class="form-hint">Locks your data if you're inactive.</span>
+                </div>
+                <div class="quick-actions" style="margin-top:1rem;">
+                    <button class="btn btn-outline" id="btn-change-pass">🔑 Change Passphrase</button>
+                    <button class="btn btn-outline" id="btn-lock">🔒 Lock Now</button>
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="local-symptom-name">Symptom</label>
-                    <input type="text" id="local-symptom-name" placeholder="e.g. cramps" required>
+
+            <div class="card">
+                <h2>💾 Backup &amp; Import</h2>
+                <p class="card-desc">Move data between devices or switch to cloud mode.</p>
+                <div class="quick-actions" style="flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="btn-export-enc">🔐 Encrypted Backup</button>
+                    <button class="btn btn-outline" id="btn-export-json">📄 Plain JSON</button>
+                    <label class="btn btn-outline" for="import-file">📥 Import</label>
+                    <input type="file" id="import-file" accept=".json" style="display:none;">
                 </div>
-                <div class="form-group">
-                    <label for="local-symptom-severity">Severity (1-5)</label>
-                    <input type="number" id="local-symptom-severity" min="1" max="5" value="3" required>
+                <p class="form-hint" style="margin-top:0.75rem;">Plain JSON can be imported into a Bloom server account for cloud sync.</p>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #e67e22;">
+                <h2>☁️ Switch to Cloud Sync</h2>
+                <p class="card-desc">Want cross-device sync or partner features?</p>
+                <ol style="line-height: 2; padding-left: 1.25rem;">
+                    <li>Click "📄 Plain JSON" above to export</li>
+                    <li><a href="/register">Create a server account</a></li>
+                    <li>In Settings → Backup → Restore, upload your file</li>
+                </ol>
+            </div>
+
+            <details class="danger-zone">
+                <summary class="danger-trigger">🗑️ Erase All Data</summary>
+                <div class="danger-content">
+                    <p class="danger-warning">Permanently deletes all data from this browser. <strong>Cannot be undone.</strong></p>
+                    <button class="btn btn-danger" id="btn-erase">Erase Everything</button>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="local-symptom-notes">Notes</label>
-                <textarea id="local-symptom-notes" rows="3"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Symptom</button>
-        </form>
-        <div id="local-symptom-list" class="local-list"></div>
-    </section>
+            </details>
+        </section>
 
-    <section class="card">
-        <h2>Journal</h2>
-        <form id="local-journal-form" class="form-stack">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="local-journal-date">Date</label>
-                    <input type="date" id="local-journal-date" required>
-                </div>
-                <div class="form-group">
-                    <label for="local-journal-mood">Mood</label>
-                    <input type="text" id="local-journal-mood" placeholder="🙂">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="local-journal-title">Title</label>
-                <input type="text" id="local-journal-title">
-            </div>
-            <div class="form-group">
-                <label for="local-journal-content">Entry</label>
-                <textarea id="local-journal-content" rows="4" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Save Journal Entry</button>
-        </form>
-        <div id="local-journal-list" class="local-list"></div>
-    </section>
-
-    <section class="card">
-        <h2>💾 Backup &amp; Sync</h2>
-        <p class="card-desc">Export your data to move between devices, keep offline backups, or switch to server mode.</p>
-
-        <h3 style="margin-top: 1rem;">Export Options</h3>
-        <ul style="font-size: 0.9rem; line-height: 1.8; padding-left: 1.25rem; margin-bottom: 1rem;">
-            <li><strong>🔐 Encrypted Backup</strong> — Protected with a passphrase you choose. Safe to store in cloud drives, email to yourself, etc. Only you can open it.</li>
-            <li><strong>📄 Plain JSON</strong> — Unencrypted, human-readable. Use this to import into a Bloom server account or just read your data directly.</li>
-        </ul>
-
-        <div class="quick-actions">
-            <button type="button" id="local-export-encrypted-btn" class="btn btn-primary">🔐 Encrypted Backup</button>
-            <button type="button" id="local-export-btn" class="btn btn-outline">📄 Plain JSON Export</button>
-            <label for="local-import-input" class="btn btn-outline">📥 Import Backup</label>
-            <input type="file" id="local-import-input" accept="application/json" style="display:none;">
-        </div>
-
-        <h3 style="margin-top: 1.25rem;">Import</h3>
-        <p class="form-hint">Import any Bloom backup file (encrypted or plain). Encrypted files will ask for the passphrase used during export. Importing merges with your existing data.</p>
-    </section>
-
-    <section class="card">
-        <h2>⚙️ Settings</h2>
-        <p class="card-desc">Configure security and privacy options for your local vault.</p>
-
-        <h3 style="margin-top: 1rem;">⏱️ Auto-Lock Timer</h3>
-        <p class="form-hint">Automatically locks your data after inactivity. If someone picks up your phone, they'll need your passphrase to see anything.</p>
-
-        <h3 style="margin-top: 1rem;">🔑 Change Passphrase</h3>
-        <p class="form-hint">Re-encrypts all your data with a new passphrase. Use this if you think someone saw your passphrase, or just want to update it. Your data stays intact — only the encryption key changes.</p>
-
-        <div id="local-settings-content"></div>
-    </section>
-
-    <section class="card" style="border-left: 4px solid #e67e22;">
-        <h2>☁️ Switch to Cloud Sync</h2>
-        <p class="card-desc">Want cross-device sync, partner features, or email notifications? Move to a server account.</p>
-
-        <h3 style="margin-top: 1rem;">How to switch:</h3>
-        <ol style="line-height: 2; padding-left: 1.25rem;">
-            <li><strong>Export your data</strong> — in the Backup section above, click "📄 Plain JSON Export"</li>
-            <li><strong><a href="/register">Create a server account</a></strong> — choose "Cloud sync" during registration</li>
-            <li><strong>Import your data</strong> — go to Settings → Encrypted Backup & Restore → Restore from Backup, upload your JSON file</li>
-            <li><strong>Erase local data</strong> (optional) — once confirmed, use the Danger Zone below to wipe local storage</li>
-        </ol>
-        <p class="form-hint" style="margin-top: 0.75rem;">⚠️ Don't erase local data until you've confirmed everything imported correctly on the server. You can keep both active simultaneously.</p>
-    </section>
-
-    <section class="card">
-        <h2>⚠️ Danger Zone</h2>
-        <p class="card-desc">Permanently delete all local data from this browser. This cannot be undone. Make sure you've exported a backup first if you want to keep your data.</p>
-        <div class="quick-actions">
-            <button type="button" id="local-clear-btn" class="btn btn-danger">🗑️ Erase All Local Data</button>
-        </div>
-    </section>
     </div>
 </div>
+
 <script src="/static/local-mode.js"></script>
 {{end}}

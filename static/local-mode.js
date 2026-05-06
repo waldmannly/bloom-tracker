@@ -1,722 +1,814 @@
-(function () {
-    'use strict';
+// Bloom Local Mode — Full offline encrypted period tracker
+// AES-256-GCM + PBKDF2-SHA256 (210k iterations)
+// Zero server contact after page load
 
-    // ─── Constants ──────────────────────────────────────────────────────────
-    var STORAGE_KEY = 'bloom-local-encrypted-v1';
-    var SETTINGS_KEY = 'bloom-local-settings-v1';
-    var LEGACY_STORAGE_KEY = 'bloom-local-v1';
-    var PBKDF2_ITERATIONS = 210000;
-    var ENCRYPTED_BACKUP_HEADER = 'BLOOM-ENC-BACKUP-V1';
+(function() {
+'use strict';
 
-    // ─── Session State ──────────────────────────────────────────────────────
-    var currentState = null;
-    var cryptoSession = null;
-    var autoLockTimer = null;
+// ═══════════════════════════════════════════════════════════════════
+// CRYPTO ENGINE
+// ═══════════════════════════════════════════════════════════════════
 
-    // ─── Settings (stored unencrypted — no sensitive data) ──────────────────
-    function loadSettings() {
-        try {
-            return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-        } catch (e) {
-            return {};
-        }
+const STORAGE_KEY = 'bloom_vault';
+const SALT_KEY = 'bloom_salt';
+const PBKDF2_ITERATIONS = 210000;
+
+let cryptoKey = null;
+let autoLockTimer = null;
+let data = null; // decrypted app data
+
+const defaultData = () => ({
+    settings: { cycleLength: 28, periodLength: 5, showFertility: true, autoLock: 5 },
+    periods: [],    // [{id, startDate, endDate}]
+    symptoms: [],   // [{id, date, category, symptoms[], severity, notes}]
+    journal: [],    // [{id, date, mood, title, content}]
+});
+
+async function deriveKey(passphrase, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function encrypt(key, plaintext) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder();
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+    const buf = new Uint8Array(iv.length + ct.byteLength);
+    buf.set(iv);
+    buf.set(new Uint8Array(ct), iv.length);
+    return btoa(String.fromCharCode(...buf));
+}
+
+async function decrypt(key, ciphertext) {
+    const raw = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+    const iv = raw.slice(0, 12);
+    const ct = raw.slice(12);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    return new TextDecoder().decode(pt);
+}
+
+async function saveData() {
+    if (!cryptoKey || !data) return;
+    const ct = await encrypt(cryptoKey, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, ct);
+}
+
+async function loadData(passphrase) {
+    const saltHex = localStorage.getItem(SALT_KEY);
+    if (!saltHex) throw new Error('No vault found');
+    const salt = Uint8Array.from(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+    const key = await deriveKey(passphrase, salt);
+    const ct = localStorage.getItem(STORAGE_KEY);
+    if (!ct) throw new Error('No data');
+    const json = await decrypt(key, ct);
+    cryptoKey = key;
+    data = JSON.parse(json);
+    // Migrate old formats
+    if (!data.settings) data.settings = defaultData().settings;
+    if (!data.periods) data.periods = [];
+    if (!data.symptoms) data.symptoms = [];
+    if (!data.journal) data.journal = [];
+}
+
+async function createVault(passphrase) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(SALT_KEY, saltHex);
+    cryptoKey = await deriveKey(passphrase, salt);
+    data = defaultData();
+    await saveData();
+}
+
+function hasVault() {
+    return !!localStorage.getItem(SALT_KEY) && !!localStorage.getItem(STORAGE_KEY);
+}
+
+function lockVault() {
+    cryptoKey = null;
+    data = null;
+    clearTimeout(autoLockTimer);
+    document.getElementById('app-main').style.display = 'none';
+    document.getElementById('lock-screen').style.display = '';
+    document.getElementById('lock-setup').style.display = 'none';
+    document.getElementById('lock-unlock').style.display = '';
+    document.getElementById('lock-error').textContent = '';
+    document.getElementById('unlock-pass').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTO-LOCK
+// ═══════════════════════════════════════════════════════════════════
+
+function resetAutoLock() {
+    clearTimeout(autoLockTimer);
+    if (!data || !data.settings.autoLock) return;
+    autoLockTimer = setTimeout(lockVault, data.settings.autoLock * 60000);
+}
+
+['click', 'keydown', 'touchstart', 'scroll'].forEach(e =>
+    document.addEventListener(e, resetAutoLock, { passive: true })
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// CYCLE CALCULATIONS (mirrors server-side cycle.go)
+// ═══════════════════════════════════════════════════════════════════
+
+function midnight(d) {
+    const t = new Date(d);
+    t.setHours(0, 0, 0, 0);
+    return t;
+}
+
+function daysBetween(a, b) {
+    return Math.round((midnight(b) - midnight(a)) / 86400000);
+}
+
+function formatDate(d) {
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateInput(d) {
+    const dt = new Date(d);
+    return dt.toISOString().split('T')[0];
+}
+
+function getLastPeriodStart() {
+    if (!data || !data.periods.length) return null;
+    const sorted = [...data.periods].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+    return sorted[0];
+}
+
+function getActivePeriod() {
+    return data.periods.find(p => !p.endDate);
+}
+
+function calculateCycleInfo() {
+    const last = getLastPeriodStart();
+    if (!last) return null;
+
+    const cycleLen = data.settings.cycleLength;
+    const periodLen = data.settings.periodLength;
+    const today = midnight(new Date());
+    const lastStart = midnight(new Date(last.startDate));
+
+    let daysSince = daysBetween(lastStart, today);
+    let currentCycleStart = lastStart;
+    if (daysSince >= cycleLen) {
+        const completed = Math.floor(daysSince / cycleLen);
+        currentCycleStart = new Date(lastStart.getTime() + completed * cycleLen * 86400000);
     }
 
-    function saveSettings(settings) {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const cycleDay = daysBetween(currentCycleStart, today) + 1;
+    let ovulationDay = cycleLen - 14;
+    if (ovulationDay < periodLen + 1) ovulationDay = periodLen + 1;
+
+    const daysUntilPeriod = cycleLen - cycleDay + 1;
+    const nextPeriodDate = new Date(today.getTime() + daysUntilPeriod * 86400000);
+
+    let phase;
+    if (cycleDay <= periodLen) phase = 'menstruation';
+    else if (cycleDay < ovulationDay - 1) phase = 'follicular';
+    else if (cycleDay <= ovulationDay + 1) phase = 'ovulation';
+    else phase = 'luteal';
+
+    const fertileStart = new Date(currentCycleStart.getTime() + (ovulationDay - 6) * 86400000);
+    const fertileEnd = new Date(currentCycleStart.getTime() + ovulationDay * 86400000);
+    const inFertile = today >= fertileStart && today <= fertileEnd;
+    const ovulationDate = new Date(currentCycleStart.getTime() + (ovulationDay - 1) * 86400000);
+
+    return { phase, cycleDay, daysUntilPeriod, nextPeriodDate, inFertile, fertileStart, fertileEnd, ovulationDate, currentCycleStart, cycleLen, periodLen, ovulationDay };
+}
+
+const phaseData = {
+    menstruation: {
+        emoji: '🌺', color: 'menstruation',
+        desc: 'Your period is here. Take it easy, stay hydrated, and listen to your body.',
+        encouragement: 'You're doing great. Rest is productive. Your body is working hard right now. 💛',
+        exercise: { tip: 'Gentle movement helps with cramps and mood.', examples: ['Walking', 'Yoga', 'Stretching', 'Light swimming'] },
+        nutrition: { tip: 'Iron-rich and anti-inflammatory foods.', nutrients: ['Iron', 'Magnesium', 'Omega-3'], foods: ['Spinach', 'Dark chocolate', 'Salmon', 'Ginger tea'] }
+    },
+    follicular: {
+        emoji: '🌱', color: 'follicular',
+        desc: 'Energy is rising! Great time for new projects and activities.',
+        encouragement: 'Your energy is building — ride the wave! This is your time to shine. ✨',
+        exercise: { tip: 'Your body recovers faster now. Push yourself!', examples: ['Strength training', 'HIIT', 'Running', 'Dance'] },
+        nutrition: { tip: 'Fuel rising energy with lean proteins and complex carbs.', nutrients: ['B Vitamins', 'Zinc', 'Vitamin E'], foods: ['Eggs', 'Avocado', 'Quinoa', 'Broccoli'] }
+    },
+    ovulation: {
+        emoji: '🌸', color: 'ovulation',
+        desc: 'Peak energy and confidence! You may feel more social and creative.',
+        encouragement: 'You're radiant right now. Confidence suits you! 🌟',
+        exercise: { tip: 'Peak performance! You're strongest this week.', examples: ['High intensity', 'Spin class', 'Sprint intervals', 'Boxing'] },
+        nutrition: { tip: 'Antioxidant-rich whole foods and extra hydration.', nutrients: ['Antioxidants', 'B Vitamins', 'Zinc'], foods: ['Berries', 'Leafy greens', 'Nuts', 'Seeds'] }
+    },
+    luteal: {
+        emoji: '🌙', color: 'luteal',
+        desc: 'Winding down. You might crave comfort foods and need more rest.',
+        encouragement: 'Be gentle with yourself. It's okay to slow down. You deserve softness. 🌙',
+        exercise: { tip: 'Lower intensity helps manage PMS symptoms.', examples: ['Pilates', 'Walking', 'Swimming', 'Gentle yoga'] },
+        nutrition: { tip: 'Complex carbs help serotonin. Don't fight the cravings — work with them.', nutrients: ['Magnesium', 'Calcium', 'B6'], foods: ['Sweet potatoes', 'Whole grains', 'Bananas', 'Dark chocolate'] }
     }
+};
 
-    function getAutoLockMinutes() {
-        var s = loadSettings();
-        if (s.autoLockMinutes === 0) return 0;
-        return s.autoLockMinutes || 5;
+// ═══════════════════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+
+function switchTab(tabName) {
+    document.querySelectorAll('.local-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.local-nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabName).classList.add('active');
+    document.querySelector(`.local-nav-btn[data-tab="${tabName}"]`).classList.add('active');
+    if (tabName === 'dashboard') renderDashboard();
+    else if (tabName === 'log-period') renderPeriods();
+    else if (tabName === 'symptoms') renderSymptoms();
+    else if (tabName === 'journal') renderJournal();
+    else if (tabName === 'calendar') renderCalendar();
+    else if (tabName === 'trends') renderTrends();
+    else if (tabName === 'settings') renderSettings();
+}
+window.switchTab = switchTab;
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+
+function renderDashboard() {
+    const info = calculateCycleInfo();
+    if (!info) {
+        document.getElementById('dash-empty').style.display = '';
+        document.getElementById('dash-content').style.display = 'none';
+        return;
     }
+    document.getElementById('dash-empty').style.display = 'none';
+    document.getElementById('dash-content').style.display = '';
 
-    // ─── Utility ────────────────────────────────────────────────────────────
-    function todayString() {
-        return new Date().toISOString().slice(0, 10);
+    const pd = phaseData[info.phase];
+
+    document.getElementById('dash-phase-hero').className = 'phase-hero phase-' + pd.color;
+    document.getElementById('dash-phase-hero').innerHTML = `
+        <div class="phase-emoji">${pd.emoji}</div>
+        <h1>${info.phase.charAt(0).toUpperCase() + info.phase.slice(1)} Phase</h1>
+        <p class="phase-desc">${pd.desc}</p>`;
+
+    let stats = `
+        <div class="stat-card"><div class="stat-number">Day ${info.cycleDay}</div><div class="stat-label">of your cycle</div></div>
+        <div class="stat-card"><div class="stat-number">${info.daysUntilPeriod}</div><div class="stat-label">days until period</div></div>`;
+    if (data.settings.showFertility) {
+        stats += `<div class="stat-card ${info.inFertile ? 'stat-fertile' : ''}"><div class="stat-number">${info.inFertile ? '🌿 Yes' : 'No'}</div><div class="stat-label">fertile window</div></div>`;
     }
+    stats += `<div class="stat-card"><div class="stat-number">${formatDate(info.nextPeriodDate)}</div><div class="stat-label">next period</div></div>`;
+    document.getElementById('dash-stats').innerHTML = stats;
 
-    function defaultState() {
-        return {
-            profile: { cycleLength: 28, periodLength: 5 },
-            periods: [],
-            symptoms: [],
-            journal: [],
-            updatedAt: new Date().toISOString()
-        };
+    // Active period banner
+    const active = getActivePeriod();
+    document.getElementById('dash-active-period').innerHTML = active ?
+        `<div class="banner banner-period"><div class="banner-text"><span class="banner-icon">🩸</span> Period started ${formatDate(active.startDate)}</div><button class="btn btn-sm btn-white" onclick="endPeriod('${active.id}')">Mark as Ended</button></div>` : '';
+
+    document.getElementById('dash-encouragement').className = 'encouragement-card phase-' + pd.color + '-soft';
+    document.getElementById('dash-encouragement').innerHTML = `<div class="encouragement-icon">💛</div><p class="encouragement-text">${pd.encouragement}</p>`;
+
+    document.getElementById('dash-wellness').innerHTML = `
+        <h2>✨ Your Body This Phase</h2>
+        <div class="wellness-grid">
+            <div class="wellness-card wellness-exercise">
+                <div class="wellness-icon">🏃‍♀️</div><h3>Exercise</h3>
+                <p class="wellness-tip">${pd.exercise.tip}</p>
+                <div class="wellness-tags">${pd.exercise.examples.map(e => `<span class="wellness-tag exercise-tag">${e}</span>`).join('')}</div>
+            </div>
+            <div class="wellness-card wellness-nutrition">
+                <div class="wellness-icon">🥗</div><h3>Nutrition</h3>
+                <p class="wellness-tip">${pd.nutrition.tip}</p>
+                <div class="wellness-tags">${pd.nutrition.foods.map(f => `<span class="wellness-tag nutrition-tag">${f}</span>`).join('')}</div>
+            </div>
+        </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PERIODS
+// ═══════════════════════════════════════════════════════════════════
+
+function renderPeriods() {
+    document.getElementById('period-start').value = formatDateInput(new Date());
+    const active = getActivePeriod();
+    document.getElementById('period-active-banner').innerHTML = active ?
+        `<div class="banner banner-period"><div class="banner-text"><span class="banner-icon">🩸</span> Active period started ${formatDate(active.startDate)}</div><button class="btn btn-sm btn-white" onclick="endPeriod('${active.id}')">Mark as Ended</button></div>` : '';
+
+    const sorted = [...data.periods].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+    document.getElementById('period-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No periods logged yet.</p>' :
+        sorted.map(p => `<div class="history-item">
+            <div class="history-dates">
+                <span class="history-start">${formatDate(p.startDate)}</span>
+                ${p.endDate ? `<span class="history-arrow">→</span><span class="history-end">${formatDate(p.endDate)}</span>` : '<span class="history-badge active">Ongoing</span>'}
+            </div>
+            <div class="history-actions">
+                ${!p.endDate ? `<button class="btn btn-xs btn-secondary" onclick="endPeriod('${p.id}')">End</button>` : ''}
+                <button class="btn btn-xs btn-danger" onclick="deletePeriod('${p.id}')">✕</button>
+            </div>
+        </div>`).join('');
+}
+
+window.endPeriod = function(id) {
+    const p = data.periods.find(x => x.id === id);
+    if (p) { p.endDate = formatDateInput(new Date()); saveData(); renderPeriods(); renderDashboard(); }
+};
+
+window.deletePeriod = function(id) {
+    if (!confirm('Delete this period entry?')) return;
+    data.periods = data.periods.filter(x => x.id !== id);
+    saveData(); renderPeriods(); renderDashboard();
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// SYMPTOMS
+// ═══════════════════════════════════════════════════════════════════
+
+const symptomSets = {
+    physical: ['Cramps', 'Headache', 'Bloating', 'Fatigue', 'Back Pain', 'Breast Tenderness', 'Nausea', 'Acne', 'Dizziness'],
+    emotional: ['Mood Swings', 'Irritability', 'Anxiety', 'Sadness', 'Happy', 'Brain Fog', 'Low Motivation'],
+    flow: ['Heavy Flow', 'Medium Flow', 'Light Flow', 'Spotting', 'Clots'],
+    other: ['Cravings', 'Insomnia', 'Hot Flashes', 'Increased Appetite', 'Low Appetite']
+};
+
+let selectedCategory = 'physical';
+let selectedSymptoms = [];
+
+function renderSymptomPills() {
+    const pills = symptomSets[selectedCategory] || [];
+    document.getElementById('sym-pills').innerHTML = `<div class="pill-group">${pills.map(s =>
+        `<button type="button" class="pill sym ${selectedSymptoms.includes(s) ? 'active' : ''}" onclick="toggleSym(this, '${s}')">${s}</button>`
+    ).join('')}</div>`;
+    updateSymSelected();
+}
+
+function updateSymSelected() {
+    const el = document.getElementById('sym-selected');
+    const list = document.getElementById('sym-selected-list');
+    if (selectedSymptoms.length) {
+        el.style.display = '';
+        list.textContent = selectedSymptoms.join(', ');
+    } else {
+        el.style.display = 'none';
     }
-
-    function escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    // ─── Status Messages ────────────────────────────────────────────────────
-    function statusEl() {
-        return document.getElementById('local-crypto-status');
-    }
-
-    function showStatus(message, isError) {
-        var el = statusEl();
-        if (!el) return;
-        el.textContent = message;
-        el.className = isError ? 'security-error' : 'security-ok';
-    }
-
-    function clearStatus() {
-        var el = statusEl();
-        if (!el) return;
-        el.textContent = '';
-        el.className = 'form-hint';
-    }
-
-    // ─── Base64 Helpers ─────────────────────────────────────────────────────
-    function toBase64(bytes) {
-        var str = '';
-        for (var i = 0; i < bytes.length; i++) {
-            str += String.fromCharCode(bytes[i]);
-        }
-        return btoa(str);
-    }
-
-    function fromBase64(value) {
-        var binary = atob(value);
-        var out = new Uint8Array(binary.length);
-        for (var i = 0; i < binary.length; i++) {
-            out[i] = binary.charCodeAt(i);
-        }
-        return out;
-    }
-
-    // ─── Envelope (encrypted localStorage blob) ─────────────────────────────
-    function loadEnvelope() {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        try {
-            var env = JSON.parse(raw);
-            if (!env || !env.salt || !env.iv || !env.ciphertext) return null;
-            return env;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function saveEnvelope(envelope) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
-    }
-
-    // ─── UI Lock State ──────────────────────────────────────────────────────
-    function setLockState(unlocked) {
-        var setupForm = document.getElementById('local-setup-form');
-        var unlockForm = document.getElementById('local-unlock-form');
-        var app = document.getElementById('local-app-content');
-        var actions = document.getElementById('local-security-actions');
-        if (!setupForm || !unlockForm || !app || !actions) return;
-
-        if (unlocked) {
-            setupForm.style.display = 'none';
-            unlockForm.style.display = 'none';
-            app.style.display = 'block';
-            actions.style.display = 'flex';
-            resetAutoLock();
-            return;
-        }
-
-        app.style.display = 'none';
-        actions.style.display = 'none';
-        clearAutoLock();
-        if (loadEnvelope()) {
-            setupForm.style.display = 'none';
-            unlockForm.style.display = 'block';
-        } else {
-            setupForm.style.display = 'block';
-            unlockForm.style.display = 'none';
-        }
-    }
-
-    // ─── Auto-Lock Timer ────────────────────────────────────────────────────
-    function clearAutoLock() {
-        if (autoLockTimer) {
-            clearTimeout(autoLockTimer);
-            autoLockTimer = null;
-        }
-    }
-
-    function resetAutoLock() {
-        clearAutoLock();
-        var minutes = getAutoLockMinutes();
-        if (minutes <= 0) return;
-        autoLockTimer = setTimeout(function () {
-            if (currentState) {
-                lockData();
-                showStatus('Auto-locked after ' + minutes + ' min of inactivity.', false);
-            }
-        }, minutes * 60 * 1000);
-    }
-
-    function onUserActivity() {
-        if (currentState) {
-            resetAutoLock();
-        }
-    }
-
-    // ─── Web Crypto ─────────────────────────────────────────────────────────
-    function subtle() {
-        return window.crypto && window.crypto.subtle;
-    }
-
-    function randomBytes(length) {
-        var bytes = new Uint8Array(length);
-        window.crypto.getRandomValues(bytes);
-        return bytes;
-    }
-
-    function deriveKey(passphrase, saltBytes, iterations) {
-        var enc = new TextEncoder();
-        return subtle().importKey(
-            'raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']
-        ).then(function (material) {
-            return subtle().deriveKey(
-                { name: 'PBKDF2', salt: saltBytes, iterations: iterations, hash: 'SHA-256' },
-                material,
-                { name: 'AES-GCM', length: 256 },
-                false,
-                ['encrypt', 'decrypt']
-            );
-        });
-    }
-
-    function encryptData(key, saltBytes, iterations, plaintext) {
-        var ivBytes = randomBytes(12);
-        var enc = new TextEncoder();
-        return subtle().encrypt(
-            { name: 'AES-GCM', iv: ivBytes }, key, enc.encode(plaintext)
-        ).then(function (cipherBuffer) {
-            return {
-                v: 1,
-                kdf: 'PBKDF2-SHA256',
-                iterations: iterations,
-                salt: toBase64(saltBytes),
-                iv: toBase64(ivBytes),
-                ciphertext: toBase64(new Uint8Array(cipherBuffer))
-            };
-        });
-    }
-
-    function decryptData(envelope, passphrase) {
-        var saltBytes = fromBase64(envelope.salt);
-        var ivBytes = fromBase64(envelope.iv);
-        var cipherBytes = fromBase64(envelope.ciphertext);
-        var iterations = Number(envelope.iterations) || PBKDF2_ITERATIONS;
-        var dec = new TextDecoder();
-
-        return deriveKey(passphrase, saltBytes, iterations).then(function (key) {
-            return subtle().decrypt(
-                { name: 'AES-GCM', iv: ivBytes }, key, cipherBytes
-            ).then(function (plainBuffer) {
-                return { plaintext: dec.decode(plainBuffer), key: key, salt: saltBytes, iterations: iterations };
-            });
-        });
-    }
-
-    // ─── Encrypt/Decrypt State ──────────────────────────────────────────────
-    function encryptState(state) {
-        if (!cryptoSession) return Promise.reject(new Error('No session'));
-        state.updatedAt = new Date().toISOString();
-        return encryptData(cryptoSession.key, cryptoSession.salt, cryptoSession.iterations, JSON.stringify(state))
-            .then(function (env) {
-                env.updatedAt = state.updatedAt;
-                return env;
-            });
-    }
-
-    function decryptEnvelope(envelope, passphrase) {
-        return decryptData(envelope, passphrase).then(function (result) {
-            var parsed = JSON.parse(result.plaintext);
-            if (!parsed.profile || !Array.isArray(parsed.periods) || !Array.isArray(parsed.symptoms) || !Array.isArray(parsed.journal)) {
-                throw new Error('Invalid payload');
-            }
-            cryptoSession = { key: result.key, salt: result.salt, iterations: result.iterations };
-            return parsed;
-        });
-    }
-
-    function persistState() {
-        if (!currentState) return;
-        encryptState(currentState).then(function (envelope) {
-            saveEnvelope(envelope);
-        }).catch(function () {
-            showStatus('Could not save encrypted data.', true);
-        });
-    }
-
-    function lockData() {
-        currentState = null;
-        cryptoSession = null;
-        setLockState(false);
-    }
-
-    // ─── Encrypted Backup Export ────────────────────────────────────────────
-    function exportEncryptedBackup() {
-        if (!currentState) return;
-
-        var pass = prompt('Enter a passphrase to protect this backup file:\n(Can be different from your device passphrase, min 8 chars)');
-        if (!pass || pass.length < 8) {
-            alert('Backup passphrase must be at least 8 characters.');
-            return;
-        }
-
-        var saltBytes = randomBytes(16);
-        deriveKey(pass, saltBytes, PBKDF2_ITERATIONS).then(function (key) {
-            return encryptData(key, saltBytes, PBKDF2_ITERATIONS, JSON.stringify(currentState));
-        }).then(function (envelope) {
-            envelope.header = ENCRYPTED_BACKUP_HEADER;
-            envelope.exportedAt = new Date().toISOString();
-            var blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var link = document.createElement('a');
-            link.href = url;
-            link.download = 'bloom-encrypted-backup-' + todayString() + '.json';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            showStatus('Encrypted backup exported successfully.', false);
-        }).catch(function () {
-            alert('Failed to create encrypted backup.');
-        });
-    }
-
-    // ─── Encrypted Backup Import ────────────────────────────────────────────
-    function importEncryptedBackup(file) {
-        var reader = new FileReader();
-        reader.onload = function () {
-            try {
-                var envelope = JSON.parse(String(reader.result || '{}'));
-
-                // Detect plain JSON backup (unencrypted export)
-                if (envelope.profile && Array.isArray(envelope.periods)) {
-                    currentState.profile = envelope.profile;
-                    currentState.periods = envelope.periods || [];
-                    currentState.symptoms = envelope.symptoms || [];
-                    currentState.journal = envelope.journal || [];
-                    persistState();
-                    syncInputsFromState();
-                    renderAll(currentState);
-                    showStatus('Plain backup imported successfully.', false);
-                    return;
-                }
-
-                if (!envelope.salt || !envelope.ciphertext) {
-                    alert('Invalid backup file format.');
-                    return;
-                }
-
-                var pass = prompt('Enter the passphrase used when exporting this backup:');
-                if (!pass) return;
-
-                decryptData(envelope, pass).then(function (result) {
-                    var imported = JSON.parse(result.plaintext);
-                    if (!imported.profile || !Array.isArray(imported.periods)) {
-                        alert('Decrypted data is invalid.');
-                        return;
-                    }
-                    currentState.profile = imported.profile;
-                    currentState.periods = imported.periods || [];
-                    currentState.symptoms = imported.symptoms || [];
-                    currentState.journal = imported.journal || [];
-                    persistState();
-                    syncInputsFromState();
-                    renderAll(currentState);
-                    showStatus('Encrypted backup imported successfully.', false);
-                }).catch(function () {
-                    alert('Wrong passphrase or corrupted backup file.');
-                });
-            } catch (err) {
-                alert('Could not read backup file.');
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    // ─── Passphrase Change ──────────────────────────────────────────────────
-    function changePassphrase() {
-        if (!currentState || !cryptoSession) {
-            alert('Unlock your data first.');
-            return;
-        }
-
-        var newPass = prompt('Enter your NEW passphrase (min 8 characters):');
-        if (!newPass || newPass.length < 8) {
-            alert('Passphrase must be at least 8 characters.');
-            return;
-        }
-        var confirmPass = prompt('Confirm your new passphrase:');
-        if (newPass !== confirmPass) {
-            alert('Passphrases do not match.');
-            return;
-        }
-
-        var newSalt = randomBytes(16);
-        deriveKey(newPass, newSalt, PBKDF2_ITERATIONS).then(function (newKey) {
-            cryptoSession = { key: newKey, salt: newSalt, iterations: PBKDF2_ITERATIONS };
-            return encryptState(currentState);
-        }).then(function (envelope) {
-            saveEnvelope(envelope);
-            showStatus('Passphrase changed! Data re-encrypted with new passphrase.', false);
-        }).catch(function () {
-            alert('Failed to change passphrase. Old passphrase still active.');
-        });
-    }
-
-    // ─── Cycle Calculations ─────────────────────────────────────────────────
-    function calculateCycleSummary(state) {
-        var periods = (state.periods || []).slice().sort(function (a, b) {
-            return a.date < b.date ? 1 : -1;
-        });
-        if (periods.length === 0) {
-            return { phase: 'No data yet', nextPeriod: 'Log your first period', dayInCycle: '—' };
-        }
-
-        var lastDate = new Date(periods[0].date + 'T00:00:00');
-        var cycleLength = state.profile.cycleLength || 28;
-        var periodLength = state.profile.periodLength || 5;
-        var now = new Date();
-        var daysSince = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-        if (daysSince < 0) daysSince = 0;
-        var dayInCycle = (daysSince % cycleLength) + 1;
-
-        var phase = 'Luteal';
-        if (dayInCycle <= periodLength) phase = 'Menstruation';
-        else if (dayInCycle <= Math.max(periodLength + 7, 12)) phase = 'Follicular';
-        else if (Math.abs(dayInCycle - (cycleLength - 14)) <= 2) phase = 'Ovulation';
-
-        var nextPeriodDate = new Date(lastDate);
-        nextPeriodDate.setDate(nextPeriodDate.getDate() + cycleLength);
-
-        return {
-            phase: phase,
-            nextPeriod: nextPeriodDate.toISOString().slice(0, 10),
-            dayInCycle: dayInCycle
-        };
-    }
-
-    // ─── Rendering ──────────────────────────────────────────────────────────
-    function renderSummary(state) {
-        var el = document.getElementById('local-summary');
-        if (!el) return;
-        var s = calculateCycleSummary(state);
-        el.innerHTML =
-            '<div class="stats-grid">' +
-            '<div class="stat-card"><div class="stat-number">' + s.dayInCycle + '</div><div class="stat-label">Cycle Day</div></div>' +
-            '<div class="stat-card"><div class="stat-number">' + s.phase + '</div><div class="stat-label">Phase</div></div>' +
-            '<div class="stat-card"><div class="stat-number">' + s.nextPeriod + '</div><div class="stat-label">Next Period</div></div>' +
-            '<div class="stat-card"><div class="stat-number">' + state.periods.length + '</div><div class="stat-label">Logged</div></div>' +
-            '</div>';
-    }
-
-    function renderList(elId, items, formatter) {
-        var el = document.getElementById(elId);
-        if (!el) return;
-        if (!items || items.length === 0) {
-            el.innerHTML = '<p class="card-desc">No entries yet.</p>';
-            return;
-        }
-        el.innerHTML = '<div class="symptom-list">' + items.slice(0, 10).map(formatter).join('') + '</div>';
-    }
-
-    function renderAll(state) {
-        renderSummary(state);
-
-        renderList('local-period-list', state.periods.slice().sort(function (a, b) {
-            return a.date < b.date ? 1 : -1;
-        }), function (p) {
-            var notes = p.notes ? '<div class="symptom-notes">' + escapeHtml(p.notes) + '</div>' : '';
-            return '<div class="symptom-row"><div class="symptom-info"><strong>' + p.date + '</strong>' + notes + '</div></div>';
-        });
-
-        renderList('local-symptom-list', state.symptoms.slice().sort(function (a, b) {
-            return a.date < b.date ? 1 : -1;
-        }), function (s) {
-            var notes = s.notes ? '<div class="symptom-notes">' + escapeHtml(s.notes) + '</div>' : '';
-            return '<div class="symptom-row"><div class="symptom-info"><span class="pill-tag">' + escapeHtml(s.category) + '</span> <strong>' + escapeHtml(s.name) + '</strong> <span>Sev ' + s.severity + '</span> <span class="symptom-date">' + s.date + '</span>' + notes + '</div></div>';
-        });
-
-        renderList('local-journal-list', state.journal.slice().sort(function (a, b) {
-            return a.date < b.date ? 1 : -1;
-        }), function (j) {
-            var title = j.title ? '<strong>' + escapeHtml(j.title) + '</strong>' : '<strong>Entry</strong>';
-            var mood = j.mood ? ' ' + escapeHtml(j.mood) : '';
-            return '<div class="symptom-row"><div class="symptom-info">' + title + mood + ' <span class="symptom-date">' + j.date + '</span><div class="symptom-notes">' + escapeHtml(j.content) + '</div></div></div>';
-        });
-
-        renderSettingsPanel();
-    }
-
-    // ─── Settings Panel ─────────────────────────────────────────────────────
-    function renderSettingsPanel() {
-        var el = document.getElementById('local-settings-content');
-        if (!el) return;
-        var settings = loadSettings();
-        var autoLock = settings.autoLockMinutes !== undefined ? settings.autoLockMinutes : 5;
-
-        el.innerHTML =
-            '<div class="form-stack">' +
-            '  <div class="form-group">' +
-            '    <label for="setting-autolock">Auto-lock after inactivity</label>' +
-            '    <select id="setting-autolock">' +
-            '      <option value="0"' + (autoLock === 0 ? ' selected' : '') + '>Never (stay unlocked)</option>' +
-            '      <option value="2"' + (autoLock === 2 ? ' selected' : '') + '>2 minutes</option>' +
-            '      <option value="5"' + (autoLock === 5 ? ' selected' : '') + '>5 minutes (recommended)</option>' +
-            '      <option value="10"' + (autoLock === 10 ? ' selected' : '') + '>10 minutes</option>' +
-            '      <option value="30"' + (autoLock === 30 ? ' selected' : '') + '>30 minutes</option>' +
-            '    </select>' +
-            '  </div>' +
-            '  <div class="form-group">' +
-            '    <label>Storage Mode</label>' +
-            '    <p class="form-hint" style="margin:0.25rem 0">Currently: <strong>Local-only (offline, encrypted on device)</strong></p>' +
-            '    <p class="form-hint" style="margin:0.25rem 0">Want cross-device sync? <a href="/register">Create a cloud account</a>, then export your data here and import it on the server version.</p>' +
-            '  </div>' +
-            '</div>';
-
-        document.getElementById('setting-autolock').addEventListener('change', function () {
-            var val = Number(this.value);
-            var s = loadSettings();
-            s.autoLockMinutes = val;
-            saveSettings(s);
-            resetAutoLock();
-            showStatus('Auto-lock: ' + (val === 0 ? 'disabled' : val + ' min') + '.', false);
-        });
-    }
-
-    function syncInputsFromState() {
-        if (!currentState || !currentState.profile) return;
-        var cl = document.getElementById('local-cycle-length');
-        var pl = document.getElementById('local-period-length');
-        if (cl) cl.value = currentState.profile.cycleLength || 28;
-        if (pl) pl.value = currentState.profile.periodLength || 5;
-    }
-
-    // ─── Bind Forms ─────────────────────────────────────────────────────────
-    function bindForms() {
-        var state = currentState;
-        if (!state) return;
-
-        var cycleLength = document.getElementById('local-cycle-length');
-        var periodLength = document.getElementById('local-period-length');
-        cycleLength.value = state.profile.cycleLength || 28;
-        periodLength.value = state.profile.periodLength || 5;
-
-        var periodDate = document.getElementById('local-period-date');
-        var symptomDate = document.getElementById('local-symptom-date');
-        var journalDate = document.getElementById('local-journal-date');
-        periodDate.value = todayString();
-        symptomDate.value = todayString();
-        journalDate.value = todayString();
-
-        document.getElementById('local-profile-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            currentState.profile.cycleLength = Number(cycleLength.value) || 28;
-            currentState.profile.periodLength = Number(periodLength.value) || 5;
-            persistState();
-            renderAll(currentState);
-            showStatus('Settings saved.', false);
-        });
-
-        document.getElementById('local-period-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            currentState.periods.push({
-                date: document.getElementById('local-period-date').value,
-                notes: document.getElementById('local-period-notes').value.trim()
-            });
-            persistState();
-            renderAll(currentState);
-            e.target.reset();
-            document.getElementById('local-period-date').value = todayString();
-        });
-
-        document.getElementById('local-symptom-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            currentState.symptoms.push({
-                date: document.getElementById('local-symptom-date').value,
-                category: document.getElementById('local-symptom-category').value,
-                name: document.getElementById('local-symptom-name').value.trim(),
-                severity: Number(document.getElementById('local-symptom-severity').value) || 3,
-                notes: document.getElementById('local-symptom-notes').value.trim()
-            });
-            persistState();
-            renderAll(currentState);
-            e.target.reset();
-            document.getElementById('local-symptom-date').value = todayString();
-            document.getElementById('local-symptom-severity').value = 3;
-        });
-
-        document.getElementById('local-journal-form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            currentState.journal.push({
-                date: document.getElementById('local-journal-date').value,
-                mood: document.getElementById('local-journal-mood').value.trim(),
-                title: document.getElementById('local-journal-title').value.trim(),
-                content: document.getElementById('local-journal-content').value.trim()
-            });
-            persistState();
-            renderAll(currentState);
-            e.target.reset();
-            document.getElementById('local-journal-date').value = todayString();
-        });
-
-        // Backup actions
-        document.getElementById('local-export-btn').addEventListener('click', function () {
-            if (!currentState) return;
-            var blob = new Blob([JSON.stringify(currentState, null, 2)], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var link = document.createElement('a');
-            link.href = url;
-            link.download = 'bloom-backup-' + todayString() + '.json';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            showStatus('Plain backup exported.', false);
-        });
-
-        document.getElementById('local-export-encrypted-btn').addEventListener('click', exportEncryptedBackup);
-
-        document.getElementById('local-import-input').addEventListener('change', function (e) {
-            var file = e.target.files && e.target.files[0];
-            if (!file) return;
-            importEncryptedBackup(file);
-            e.target.value = '';
-        });
-
-        document.getElementById('local-clear-btn').addEventListener('click', function () {
-            if (!window.confirm('Delete ALL local Bloom data?\n\nThis cannot be undone. Export a backup first.')) return;
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(SETTINGS_KEY);
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-            location.reload();
-        });
-
-        // Security actions
-        document.getElementById('local-change-passphrase-btn').addEventListener('click', changePassphrase);
-    }
-
-    var formsInitialized = false;
-    function initializeFormsOnce() {
-        if (formsInitialized) return;
-        bindForms();
-        formsInitialized = true;
-    }
-
-    // ─── Unlock Flow ────────────────────────────────────────────────────────
-    function unlockWithState(state) {
-        currentState = state;
-        setLockState(true);
-        clearStatus();
-        initializeFormsOnce();
-        syncInputsFromState();
-        renderAll(currentState);
-    }
-
-    function handleSetupSubmit(e) {
-        e.preventDefault();
-        var pass = document.getElementById('local-passphrase').value;
-        var confirm = document.getElementById('local-passphrase-confirm').value;
-
-        if (pass.length < 8) {
-            showStatus('Passphrase must be at least 8 characters.', true);
-            return;
-        }
-        if (pass !== confirm) {
-            showStatus('Passphrases do not match.', true);
-            return;
-        }
-
-        var saltBytes = randomBytes(16);
-        deriveKey(pass, saltBytes, PBKDF2_ITERATIONS).then(function (key) {
-            cryptoSession = { key: key, salt: saltBytes, iterations: PBKDF2_ITERATIONS };
-
-            // Auto-migrate legacy unencrypted data
-            var legacy = null;
-            try {
-                var raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-                if (raw) legacy = JSON.parse(raw);
-            } catch (e) { /* ignore */ }
-
-            if (legacy && legacy.profile) {
-                currentState = legacy;
-            } else {
-                currentState = defaultState();
-            }
-
-            return encryptState(currentState);
-        }).then(function (envelope) {
-            saveEnvelope(envelope);
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-            unlockWithState(currentState);
-            showStatus('Encryption enabled! Data is now protected.', false);
-            document.getElementById('local-setup-form').reset();
-        }).catch(function () {
-            showStatus('Could not initialize encryption.', true);
-        });
-    }
-
-    function handleUnlockSubmit(e) {
-        e.preventDefault();
-        var pass = document.getElementById('local-unlock-passphrase').value;
-        var envelope = loadEnvelope();
-        if (!envelope) { setLockState(false); return; }
-
-        decryptEnvelope(envelope, pass).then(function (state) {
-            unlockWithState(state);
-            showStatus('Unlocked. Data encrypted at rest.', false);
-            document.getElementById('local-unlock-form').reset();
-        }).catch(function () {
-            showStatus('Wrong passphrase.', true);
-        });
-    }
-
-    // ─── Bind Security Panel ────────────────────────────────────────────────
-    function bindSecurityActions() {
-        document.getElementById('local-setup-form').addEventListener('submit', handleSetupSubmit);
-        document.getElementById('local-unlock-form').addEventListener('submit', handleUnlockSubmit);
-        document.getElementById('local-lock-btn').addEventListener('click', function () {
-            lockData();
-            showStatus('Locked.', false);
-        });
-    }
-
-    // ─── Activity Listeners for Auto-Lock ───────────────────────────────────
-    function bindActivityListeners() {
-        ['click', 'keydown', 'touchstart', 'scroll'].forEach(function (evt) {
-            document.addEventListener(evt, onUserActivity, { passive: true });
-        });
-    }
-
-    // ─── Init ───────────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function () {
-        if (!subtle()) {
-            showStatus('Browser does not support Web Crypto.', true);
-            setLockState(false);
-            return;
-        }
-
-        bindSecurityActions();
-        bindActivityListeners();
-
-        setLockState(false);
-        if (loadEnvelope()) {
-            showStatus('Enter passphrase to unlock.', false);
-        } else if (localStorage.getItem(LEGACY_STORAGE_KEY)) {
-            showStatus('Unencrypted data found — create a passphrase to encrypt it.', false);
-            document.getElementById('local-setup-form').style.display = 'block';
-        } else {
-            showStatus('Create a passphrase to start tracking securely.', false);
+}
+
+window.toggleSym = function(btn, name) {
+    const idx = selectedSymptoms.indexOf(name);
+    if (idx >= 0) { selectedSymptoms.splice(idx, 1); btn.classList.remove('active'); }
+    else { selectedSymptoms.push(name); btn.classList.add('active'); }
+    updateSymSelected();
+};
+
+function renderSymptoms() {
+    document.getElementById('sym-date').value = formatDateInput(new Date());
+    renderSymptomPills();
+
+    const sorted = [...data.symptoms].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+    document.getElementById('symptom-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No symptoms logged yet.</p>' :
+        sorted.map(s => `<div class="history-item">
+            <div><strong>${formatDate(s.date)}</strong> — ${s.symptoms.join(', ')} <span class="form-hint">(${s.severity}/5)</span></div>
+            <button class="btn btn-xs btn-danger" onclick="deleteSymptom('${s.id}')">✕</button>
+        </div>`).join('');
+}
+
+window.deleteSymptom = function(id) {
+    data.symptoms = data.symptoms.filter(x => x.id !== id);
+    saveData(); renderSymptoms();
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// JOURNAL
+// ═══════════════════════════════════════════════════════════════════
+
+let selectedMood = '😐';
+
+function renderJournal() {
+    document.getElementById('jrn-date').value = formatDateInput(new Date());
+
+    const sorted = [...data.journal].sort((a, b) => new Date(b.date) - new Date(a.date));
+    document.getElementById('journal-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No journal entries yet.</p>' :
+        sorted.map(j => `<div class="journal-entry">
+            <div class="journal-entry-header">
+                <div class="journal-meta">
+                    ${j.mood ? `<span class="journal-mood">${j.mood}</span>` : ''}
+                    <span class="journal-date">${formatDate(j.date)}</span>
+                </div>
+                <button class="btn-icon" onclick="deleteJournal('${j.id}')" title="Delete">🗑️</button>
+            </div>
+            ${j.title ? `<h3 class="journal-title">${escHtml(j.title)}</h3>` : ''}
+            <p class="journal-content">${escHtml(j.content)}</p>
+        </div>`).join('');
+}
+
+window.deleteJournal = function(id) {
+    if (!confirm('Delete this journal entry?')) return;
+    data.journal = data.journal.filter(x => x.id !== id);
+    saveData(); renderJournal();
+};
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CALENDAR
+// ═══════════════════════════════════════════════════════════════════
+
+let calYear, calMonth;
+
+function renderCalendar() {
+    if (!calYear) { const now = new Date(); calYear = now.getFullYear(); calMonth = now.getMonth(); }
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    document.getElementById('cal-title').textContent = `${monthNames[calMonth]} ${calYear}`;
+
+    const info = calculateCycleInfo();
+    const firstDay = new Date(calYear, calMonth, 1);
+    const lastDay = new Date(calYear, calMonth + 1, 0);
+    const startPad = firstDay.getDay();
+
+    // Build period date set
+    const periodDates = new Set();
+    data.periods.forEach(p => {
+        const s = midnight(new Date(p.startDate));
+        const e = p.endDate ? midnight(new Date(p.endDate)) : midnight(new Date());
+        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+            periodDates.add(formatDateInput(d));
         }
     });
+
+    // Symptom dates
+    const symptomDates = new Set(data.symptoms.map(s => s.date));
+
+    // Predicted/fertile/ovulation dates
+    const predictedDates = new Set();
+    const fertileDates = new Set();
+    const ovulationDates = new Set();
+    if (info) {
+        // Generate predictions for display range
+        const last = getLastPeriodStart();
+        if (last) {
+            const start = midnight(new Date(last.startDate));
+            for (let cycle = 0; cycle < 6; cycle++) {
+                const cycleStart = new Date(start.getTime() + cycle * info.cycleLen * 86400000);
+                // Predicted period
+                for (let d = 0; d < info.periodLen; d++) {
+                    const pd = new Date(cycleStart.getTime() + d * 86400000);
+                    if (!periodDates.has(formatDateInput(pd))) predictedDates.add(formatDateInput(pd));
+                }
+                // Ovulation & fertile
+                const ovDay = info.ovulationDay;
+                const ov = new Date(cycleStart.getTime() + (ovDay - 1) * 86400000);
+                ovulationDates.add(formatDateInput(ov));
+                for (let d = ovDay - 6; d <= ovDay; d++) {
+                    fertileDates.add(formatDateInput(new Date(cycleStart.getTime() + d * 86400000)));
+                }
+            }
+        }
+    }
+
+    const today = formatDateInput(new Date());
+    let html = '';
+    let dayNum = 1 - startPad;
+    for (let week = 0; week < 6; week++) {
+        if (dayNum > lastDay.getDate()) break;
+        html += '<tr>';
+        for (let dow = 0; dow < 7; dow++, dayNum++) {
+            if (dayNum < 1 || dayNum > lastDay.getDate()) {
+                html += '<td class="cal-day other-month"></td>';
+            } else {
+                const dateStr = formatDateInput(new Date(calYear, calMonth, dayNum));
+                let cls = 'cal-day';
+                if (dateStr === today) cls += ' today';
+                if (periodDates.has(dateStr)) cls += ' period';
+                else if (predictedDates.has(dateStr)) cls += ' predicted';
+                if (ovulationDates.has(dateStr) && data.settings.showFertility) cls += ' ovulation';
+                else if (fertileDates.has(dateStr) && data.settings.showFertility) cls += ' fertile';
+                const symCount = data.symptoms.filter(s => s.date === dateStr).length;
+                html += `<td class="${cls}"><span class="day-num">${dayNum}</span>${symCount ? `<span class="day-badge">${symCount}</span>` : ''}</td>`;
+            }
+        }
+        html += '</tr>';
+    }
+    document.getElementById('cal-body').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRENDS
+// ═══════════════════════════════════════════════════════════════════
+
+function renderTrends() {
+    if (data.periods.length < 2) {
+        document.getElementById('trends-empty').style.display = '';
+        document.getElementById('trends-content').style.display = 'none';
+        return;
+    }
+    document.getElementById('trends-empty').style.display = 'none';
+    document.getElementById('trends-content').style.display = '';
+
+    const sorted = [...data.periods].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const cycles = [];
+    for (let i = 1; i < sorted.length; i++) {
+        const len = daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i].startDate));
+        const pDays = sorted[i - 1].endDate ? daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i - 1].endDate)) : null;
+        const month = new Date(sorted[i - 1].startDate).toLocaleDateString('en-US', { month: 'short' });
+        cycles.push({ len, pDays, month });
+    }
+
+    const avgLen = (cycles.reduce((s, c) => s + c.len, 0) / cycles.length).toFixed(1);
+    const maxLen = Math.max(...cycles.map(c => c.len));
+
+    document.getElementById('trends-stats').innerHTML = `
+        <div class="stat-card"><div class="stat-number">${avgLen}</div><div class="stat-label">avg cycle length</div></div>
+        <div class="stat-card"><div class="stat-number">${data.periods.length}</div><div class="stat-label">periods logged</div></div>
+        <div class="stat-card"><div class="stat-number">${data.symptoms.length}</div><div class="stat-label">symptoms logged</div></div>
+        <div class="stat-card"><div class="stat-number">${cycles.length}</div><div class="stat-label">cycles tracked</div></div>`;
+
+    document.getElementById('trends-cycle-chart').innerHTML = `
+        <h2>📏 Cycle Length Over Time</h2>
+        <div class="chart-card"><div class="bar-chart">${cycles.map(c => `
+            <div class="bar-col">
+                <div class="bar-value">${c.len}d</div>
+                <div class="bar-track"><div class="bar-fill cycle-bar" style="height:${(c.len / maxLen * 100).toFixed(0)}%"></div></div>
+                <div class="bar-label">${c.month}</div>
+            </div>`).join('')}</div></div>`;
+
+    // Symptom frequency
+    const symFreq = {};
+    data.symptoms.forEach(s => s.symptoms.forEach(name => { symFreq[name] = (symFreq[name] || 0) + 1; }));
+    const topSymptoms = Object.entries(symFreq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const maxSym = topSymptoms.length ? topSymptoms[0][1] : 1;
+
+    document.getElementById('trends-symptom-chart').innerHTML = topSymptoms.length ? `
+        <h2>📝 Most Common Symptoms</h2>
+        <div class="chart-card"><div class="bar-chart">${topSymptoms.map(([name, count]) => `
+            <div class="bar-col">
+                <div class="bar-value">${count}</div>
+                <div class="bar-track"><div class="bar-fill period-bar" style="height:${(count / maxSym * 100).toFixed(0)}%"></div></div>
+                <div class="bar-label">${name.split(' ')[0]}</div>
+            </div>`).join('')}</div></div>` : '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+
+function renderSettings() {
+    document.getElementById('set-cycle-len').value = data.settings.cycleLength;
+    document.getElementById('set-period-len').value = data.settings.periodLength;
+    document.getElementById('set-fertility').checked = data.settings.showFertility;
+    document.getElementById('set-autolock').value = data.settings.autoLock || 5;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════════════
+
+async function exportEncrypted() {
+    const pass = prompt('Choose a backup passphrase (8+ chars):');
+    if (!pass || pass.length < 8) { alert('Passphrase must be at least 8 characters.'); return; }
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await deriveKey(pass, salt);
+    const ct = await encrypt(key, JSON.stringify(data));
+    const backup = { type: 'bloom-encrypted-backup', version: 2, salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join(''), data: ct };
+    download(JSON.stringify(backup), 'bloom-backup-encrypted.json');
+}
+
+function exportJSON() {
+    download(JSON.stringify(data, null, 2), 'bloom-export.json');
+}
+
+async function importFile(file) {
+    const text = await file.text();
+    let imported;
+    try {
+        imported = JSON.parse(text);
+    } catch { alert('Invalid file format.'); return; }
+
+    if (imported.type === 'bloom-encrypted-backup') {
+        const pass = prompt('Enter the backup passphrase:');
+        if (!pass) return;
+        try {
+            const salt = Uint8Array.from(imported.salt.match(/.{2}/g).map(b => parseInt(b, 16)));
+            const key = await deriveKey(pass, salt);
+            const json = await decrypt(key, imported.data);
+            imported = JSON.parse(json);
+        } catch { alert('Wrong passphrase or corrupted backup.'); return; }
+    }
+
+    // Merge or replace
+    if (imported.periods || imported.symptoms || imported.journal) {
+        const merge = confirm('Merge with existing data? (Cancel = replace all)');
+        if (merge) {
+            const existingPeriodDates = new Set(data.periods.map(p => p.startDate));
+            (imported.periods || []).forEach(p => { if (!existingPeriodDates.has(p.startDate)) data.periods.push({ ...p, id: p.id || uid() }); });
+            (imported.symptoms || []).forEach(s => data.symptoms.push({ ...s, id: s.id || uid() }));
+            (imported.journal || []).forEach(j => data.journal.push({ ...j, id: j.id || uid() }));
+        } else {
+            data.periods = (imported.periods || []).map(p => ({ ...p, id: p.id || uid() }));
+            data.symptoms = (imported.symptoms || []).map(s => ({ ...s, id: s.id || uid() }));
+            data.journal = (imported.journal || []).map(j => ({ ...j, id: j.id || uid() }));
+            if (imported.settings) data.settings = { ...data.settings, ...imported.settings };
+        }
+        await saveData();
+        alert('Import complete!');
+        renderDashboard();
+    } else {
+        alert('Unrecognized file format. Expected Bloom export/backup.');
+    }
+}
+
+function download(content, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EVENT BINDINGS
+// ═══════════════════════════════════════════════════════════════════
+
+function init() {
+    // Lock screen logic
+    if (hasVault()) {
+        document.getElementById('lock-setup').style.display = 'none';
+        document.getElementById('lock-unlock').style.display = '';
+    } else {
+        document.getElementById('lock-setup').style.display = '';
+        document.getElementById('lock-unlock').style.display = 'none';
+    }
+
+    // Setup form
+    document.getElementById('setup-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pass = document.getElementById('setup-pass').value;
+        const confirm = document.getElementById('setup-confirm').value;
+        if (pass !== confirm) { showLockError('Passphrases don\'t match.'); return; }
+        if (pass.length < 8) { showLockError('Must be 8+ characters.'); return; }
+        await createVault(pass);
+        unlockUI();
+    });
+
+    // Unlock form
+    document.getElementById('unlock-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pass = document.getElementById('unlock-pass').value;
+        try {
+            await loadData(pass);
+            unlockUI();
+        } catch {
+            showLockError('Wrong passphrase.');
+        }
+    });
+
+    // Nav tabs
+    document.querySelectorAll('.local-nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Period form
+    document.getElementById('period-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const startDate = document.getElementById('period-start').value;
+        if (!startDate) return;
+        data.periods.push({ id: uid(), startDate, endDate: null });
+        saveData(); renderPeriods(); renderDashboard();
+    });
+
+    // Symptom category buttons
+    document.getElementById('sym-categories').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cat]');
+        if (!btn) return;
+        document.querySelectorAll('#sym-categories .pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCategory = btn.dataset.cat;
+        renderSymptomPills();
+    });
+
+    // Symptom form
+    document.getElementById('symptom-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!selectedSymptoms.length) { alert('Select at least one symptom.'); return; }
+        data.symptoms.push({
+            id: uid(),
+            date: document.getElementById('sym-date').value,
+            category: selectedCategory,
+            symptoms: [...selectedSymptoms],
+            severity: parseInt(document.getElementById('sym-severity').value),
+            notes: document.getElementById('sym-notes').value
+        });
+        selectedSymptoms = [];
+        document.getElementById('sym-notes').value = '';
+        saveData(); renderSymptoms();
+    });
+
+    // Journal mood picker
+    document.getElementById('jrn-moods').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-mood]');
+        if (!btn) return;
+        document.querySelectorAll('#jrn-moods .mood-option').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedMood = btn.dataset.mood;
+    });
+
+    // Journal form
+    document.getElementById('journal-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const content = document.getElementById('jrn-content').value.trim();
+        if (!content) { alert('Write something first!'); return; }
+        data.journal.push({
+            id: uid(),
+            date: document.getElementById('jrn-date').value,
+            mood: selectedMood,
+            title: document.getElementById('jrn-title').value.trim(),
+            content
+        });
+        document.getElementById('jrn-title').value = '';
+        document.getElementById('jrn-content').value = '';
+        saveData(); renderJournal();
+    });
+
+    // Calendar nav
+    document.getElementById('cal-prev').addEventListener('click', () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); });
+    document.getElementById('cal-next').addEventListener('click', () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); });
+
+    // Settings form
+    document.getElementById('settings-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        data.settings.cycleLength = parseInt(document.getElementById('set-cycle-len').value) || 28;
+        data.settings.periodLength = parseInt(document.getElementById('set-period-len').value) || 5;
+        data.settings.showFertility = document.getElementById('set-fertility').checked;
+        saveData();
+        alert('Settings saved!');
+    });
+
+    // Auto-lock select
+    document.getElementById('set-autolock').addEventListener('change', (e) => {
+        data.settings.autoLock = parseInt(e.target.value);
+        saveData(); resetAutoLock();
+    });
+
+    // Security buttons
+    document.getElementById('btn-lock').addEventListener('click', lockVault);
+    document.getElementById('btn-change-pass').addEventListener('click', async () => {
+        const newPass = prompt('New passphrase (8+ chars):');
+        if (!newPass || newPass.length < 8) { alert('Must be 8+ characters.'); return; }
+        const confirmPass = prompt('Confirm new passphrase:');
+        if (newPass !== confirmPass) { alert('Passphrases don\'t match.'); return; }
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem(SALT_KEY, saltHex);
+        cryptoKey = await deriveKey(newPass, salt);
+        await saveData();
+        alert('Passphrase changed! All data re-encrypted.');
+    });
+
+    // Export/Import
+    document.getElementById('btn-export-enc').addEventListener('click', exportEncrypted);
+    document.getElementById('btn-export-json').addEventListener('click', exportJSON);
+    document.getElementById('import-file').addEventListener('change', (e) => {
+        if (e.target.files[0]) importFile(e.target.files[0]);
+        e.target.value = '';
+    });
+
+    // Erase
+    document.getElementById('btn-erase').addEventListener('click', () => {
+        if (!confirm('PERMANENTLY delete all local data? This cannot be undone!')) return;
+        if (!confirm('Are you absolutely sure?')) return;
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SALT_KEY);
+        cryptoKey = null; data = null;
+        location.reload();
+    });
+}
+
+function unlockUI() {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app-main').style.display = '';
+    resetAutoLock();
+    renderDashboard();
+}
+
+function showLockError(msg) {
+    document.getElementById('lock-error').textContent = msg;
+}
+
+// Start
+init();
 })();
