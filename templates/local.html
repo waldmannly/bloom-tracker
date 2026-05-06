@@ -182,10 +182,21 @@
         <h3 style="margin-top: 1rem;">🔑 Change Passphrase</h3>
         <p class="form-hint">Re-encrypts all your data with a new passphrase. Use this if you think someone saw your passphrase, or just want to update it. Your data stays intact — only the encryption key changes.</p>
 
-        <h3 style="margin-top: 1rem;">🔄 Switch to Cloud</h3>
-        <p class="form-hint">Want cross-device sync or partner features? Export your data as Plain JSON (in Backup section above), then <a href="/register">create a server account</a> and import it there.</p>
-
         <div id="local-settings-content"></div>
+    </section>
+
+    <section class="card" style="border-left: 4px solid #e67e22;">
+        <h2>☁️ Switch to Cloud Sync</h2>
+        <p class="card-desc">Want cross-device sync, partner features, or email notifications? Move to a server account.</p>
+
+        <h3 style="margin-top: 1rem;">How to switch:</h3>
+        <ol style="line-height: 2; padding-left: 1.25rem;">
+            <li><strong>Export your data</strong> — in the Backup section above, click "📄 Plain JSON Export"</li>
+            <li><strong><a href="/register">Create a server account</a></strong> — choose "Cloud sync" during registration</li>
+            <li><strong>Import your data</strong> — go to Settings → Encrypted Backup & Restore → Restore from Backup, upload your JSON file</li>
+            <li><strong>Erase local data</strong> (optional) — once confirmed, use the Danger Zone below to wipe local storage</li>
+        </ol>
+        <p class="form-hint" style="margin-top: 0.75rem;">⚠️ Don't erase local data until you've confirmed everything imported correctly on the server. You can keep both active simultaneously.</p>
     </section>
 
     <section class="card">
