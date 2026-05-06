@@ -191,7 +191,7 @@ const phaseData = {
     menstruation: {
         emoji: '🌺', color: 'menstruation',
         desc: 'Your period is here. Take it easy, stay hydrated, and listen to your body.',
-        encouragement: 'You're doing great. Rest is productive. Your body is working hard right now. 💛',
+        encouragement: "You're doing great. Rest is productive. Your body is working hard right now. 💛",
         exercise: { tip: 'Gentle movement helps with cramps and mood.', examples: ['Walking', 'Yoga', 'Stretching', 'Light swimming'] },
         nutrition: { tip: 'Iron-rich and anti-inflammatory foods.', nutrients: ['Iron', 'Magnesium', 'Omega-3'], foods: ['Spinach', 'Dark chocolate', 'Salmon', 'Ginger tea'] }
     },
@@ -205,16 +205,16 @@ const phaseData = {
     ovulation: {
         emoji: '🌸', color: 'ovulation',
         desc: 'Peak energy and confidence! You may feel more social and creative.',
-        encouragement: 'You're radiant right now. Confidence suits you! 🌟',
-        exercise: { tip: 'Peak performance! You're strongest this week.', examples: ['High intensity', 'Spin class', 'Sprint intervals', 'Boxing'] },
+        encouragement: "You're radiant right now. Confidence suits you! 🌟",
+        exercise: { tip: "Peak performance! You're strongest this week.", examples: ['High intensity', 'Spin class', 'Sprint intervals', 'Boxing'] },
         nutrition: { tip: 'Antioxidant-rich whole foods and extra hydration.', nutrients: ['Antioxidants', 'B Vitamins', 'Zinc'], foods: ['Berries', 'Leafy greens', 'Nuts', 'Seeds'] }
     },
     luteal: {
         emoji: '🌙', color: 'luteal',
         desc: 'Winding down. You might crave comfort foods and need more rest.',
-        encouragement: 'Be gentle with yourself. It's okay to slow down. You deserve softness. 🌙',
+        encouragement: "Be gentle with yourself. It's okay to slow down. You deserve softness. 🌙",
         exercise: { tip: 'Lower intensity helps manage PMS symptoms.', examples: ['Pilates', 'Walking', 'Swimming', 'Gentle yoga'] },
-        nutrition: { tip: 'Complex carbs help serotonin. Don't fight the cravings — work with them.', nutrients: ['Magnesium', 'Calcium', 'B6'], foods: ['Sweet potatoes', 'Whole grains', 'Bananas', 'Dark chocolate'] }
+        nutrition: { tip: "Complex carbs help serotonin. Don't fight the cravings — work with them.", nutrients: ['Magnesium', 'Calcium', 'B6'], foods: ['Sweet potatoes', 'Whole grains', 'Bananas', 'Dark chocolate'] }
     }
 };
 
