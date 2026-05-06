@@ -265,6 +265,87 @@ input:focus, textarea:focus, select:focus {
 .auth-form .btn { margin-top: 0.5rem; }
 .auth-footer { margin-top: 1.25rem; font-size: 0.9rem; color: var(--text-light); }
 
+.storage-choice {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.storage-option {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.storage-option input {
+    margin-bottom: 0.25rem;
+}
+
+.storage-option span {
+    font-weight: 600;
+}
+
+.storage-option small {
+    color: var(--text-light);
+    font-size: 0.8rem;
+}
+
+.storage-option.active {
+    border-color: var(--rose);
+    box-shadow: 0 0 0 3px var(--rose-light);
+}
+
+.local-mode-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.local-hero {
+    background: linear-gradient(135deg, #FFF7F8, #F3FBFA);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+}
+
+.local-list {
+    margin-top: 1rem;
+}
+
+.security-panel {
+    border: 1px solid var(--border);
+}
+
+.security-error {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.9rem;
+}
+
+.security-ok {
+    color: #065f46;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.9rem;
+}
+
+.pill-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--teal-light);
+    color: #2f6f6b;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+}
+
 .invite-input {
     text-align: center;
     font-size: 1.5rem !important;

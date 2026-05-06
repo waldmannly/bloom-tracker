@@ -91,6 +91,12 @@ function updateSeverityDisplay(value) {
 
 // ─── Init ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function() {
+            // Service worker is optional; ignore registration failures.
+        });
+    }
+
     // Severity slider
     var slider = document.getElementById('severity');
     if (slider) {
@@ -150,4 +156,48 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    var storageRadios = document.querySelectorAll('input[name="storage_mode"]');
+    if (storageRadios.length) {
+        var cloudFields = document.getElementById('cloud-signup-fields');
+        var submitBtn = document.querySelector('.auth-form button[type="submit"]');
+        var requiredIds = ['name', 'email', 'password', 'confirm'];
+
+        function syncStorageModeUI() {
+            var selected = document.querySelector('input[name="storage_mode"]:checked');
+            var cloud = selected && selected.value === 'cloud';
+
+            requiredIds.forEach(function(id) {
+                var input = document.getElementById(id);
+                if (!input) return;
+                input.required = cloud;
+                if (!cloud) {
+                    input.value = '';
+                }
+            });
+
+            if (cloudFields) {
+                cloudFields.style.display = cloud ? 'block' : 'none';
+            }
+            if (submitBtn) {
+                submitBtn.textContent = cloud ? 'Create Cloud Account' : 'Continue in Local-Only Mode';
+            }
+
+            ['storage-local-card', 'storage-cloud-card'].forEach(function(id) {
+                var card = document.getElementById(id);
+                if (!card) return;
+                card.classList.remove('active');
+            });
+            var activeCardId = cloud ? 'storage-cloud-card' : 'storage-local-card';
+            var activeCard = document.getElementById(activeCardId);
+            if (activeCard) {
+                activeCard.classList.add('active');
+            }
+        }
+
+        storageRadios.forEach(function(radio) {
+            radio.addEventListener('change', syncStorageModeUI);
+        });
+        syncStorageModeUI();
+    }
 });

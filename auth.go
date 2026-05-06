@@ -262,6 +262,16 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	storageMode := strings.TrimSpace(strings.ToLower(r.FormValue("storage_mode")))
+	if storageMode == "" || storageMode != "cloud" {
+		storageMode = "local"
+	}
+	if storageMode == "local" {
+		setFlash(w, "info", "Local-only mode enabled. Your data stays in this browser unless you export it.")
+		http.Redirect(w, r, "/local", http.StatusSeeOther)
+		return
+	}
+
 	name := strings.TrimSpace(r.FormValue("name"))
 	email := strings.TrimSpace(strings.ToLower(r.FormValue("email")))
 	password := r.FormValue("password")

@@ -7,22 +7,47 @@
         <p>Plain language. No legalese. Here's exactly how Bloom handles your data.</p>
     </div>
 
-    <div class="card" style="border-left: 4px solid #e67e22;">
-        <h2>⚠️ Hosted vs. Self-Hosted — Be Informed</h2>
-        <p>Bloom is <strong>open-source software designed to be self-hosted</strong>. If you self-host Bloom on your own device, <strong>your data never leaves your machine</strong> — that's the gold standard for privacy.</p>
-        <p>If you're using a <strong>hosted instance</strong> (like this website), your data lives on someone else's server. While we take every precaution to protect it, you should understand the tradeoffs:</p>
+    <div class="card" style="border-left: 4px solid #2a9d8f;">
+        <h2>📱 Local-Only Mode (Maximum Privacy)</h2>
+        <p>Bloom can run <strong>entirely in your browser with zero server contact</strong>. In local-only mode:</p>
         <ul class="privacy-list">
-            <li>🏠 <strong>Self-hosted</strong> = full privacy. Data on your hardware, under your control. No one else can access it.</li>
-            <li>🌐 <strong>Hosted</strong> = convenient, but the server operator <em>could</em> technically access the database. You're trusting them.</li>
-            <li>🔐 We encrypt the database at rest and use secure connections (HTTPS), but no hosted service can guarantee the same level of privacy as running it yourself.</li>
-            <li>📖 Bloom is fully open-source — you can verify exactly what the code does, and spin up your own instance anytime.</li>
+            <li>🔐 <strong>AES-256-GCM encryption</strong> — your data is encrypted with a passphrase before it's written to browser storage</li>
+            <li>🧠 <strong>Zero-knowledge</strong> — the server never sees, processes, or stores your data</li>
+            <li>✈️ <strong>Works offline</strong> — after the first visit, the app works without any internet connection</li>
+            <li>📱 <strong>Installable</strong> — add to your home screen as a native-feeling app (PWA)</li>
+            <li>⏱️ <strong>Auto-locks</strong> — configurable inactivity timeout protects your data if you walk away</li>
+            <li>🔑 <strong>Passphrase stays on-device</strong> — derived key never leaves your browser, ever</li>
+            <li>🔄 <strong>Export anytime</strong> — encrypted or plain JSON backups to move between devices</li>
+            <li>❌ <strong>No signup needed</strong> — no email, no name, no account</li>
         </ul>
-        <p><strong>Our honest recommendation:</strong> If your cycle data privacy is critical to you, <a href="https://github.com/bloomtracker/bloom#-self-hosting-guide">self-host Bloom</a>. It takes about 5 minutes.</p>
+        <p><strong>This is the most private way to use Bloom.</strong> Your data physically cannot leave your device unless you export it yourself.</p>
+    </div>
+
+    <div class="card" style="border-left: 4px solid #e67e22;">
+        <h2>⚠️ Cloud Sync vs. Local-Only vs. Self-Hosted</h2>
+        <p>Bloom offers three privacy levels. Pick what works for you:</p>
+        <ul class="privacy-list">
+            <li>📱 <strong>Local-only mode</strong> = maximum privacy. Zero server contact. Data encrypted in your browser. No account needed.</li>
+            <li>🏠 <strong>Self-hosted server</strong> = full privacy. Data on your hardware, under your control. No one else can access it.</li>
+            <li>🌐 <strong>Hosted cloud sync</strong> = convenient, but the server operator <em>could</em> technically access the database. You're trusting them.</li>
+        </ul>
+        <p>You can <strong>switch between modes at any time</strong> by exporting your data (plain JSON) and importing it in the other mode.</p>
+        <p><strong>Our recommendation:</strong> Use <a href="/local">local-only mode</a> unless you specifically need cross-device sync or partner features.</p>
     </div>
 
     <div class="card">
         <h2>📍 How Your Data is Stored</h2>
-        <p>Bloom stores all data in a single SQLite database file on the server running the app. There is no syncing to external cloud services, no third-party databases, and no data warehouses.</p>
+
+        <h3>Local-Only Mode (no account)</h3>
+        <ul class="privacy-list">
+            <li>✅ Data encrypted with AES-256-GCM using your passphrase — stored only in your browser's localStorage</li>
+            <li>✅ Key derived via PBKDF2-SHA256 with 210,000 iterations and a random salt</li>
+            <li>✅ Server never receives, processes, or stores any of your data</li>
+            <li>✅ Works completely offline after first page load</li>
+            <li>✅ Auto-locks after inactivity to protect against physical access</li>
+        </ul>
+
+        <h3>Cloud Sync (account required)</h3>
         <ul class="privacy-list">
             <li>✅ Data stored in a single SQLite file — not spread across services</li>
             <li>✅ No third-party databases, analytics platforms, or data brokers</li>
@@ -49,6 +74,17 @@
 
     <div class="card">
         <h2>🔐 Security</h2>
+        <h3>Local-Only Mode</h3>
+        <ul class="privacy-list">
+            <li>🔑 AES-256-GCM encryption with PBKDF2-SHA256 key derivation (210,000 iterations)</li>
+            <li>🧂 Unique random salt per vault — prevents rainbow table attacks</li>
+            <li>⏱️ Auto-lock after configurable inactivity (2, 5, 10, or 30 minutes)</li>
+            <li>🔄 Passphrase change re-encrypts all data immediately</li>
+            <li>📤 Encrypted backup export — protected by a separate passphrase</li>
+            <li>🚫 Passphrase never stored, never transmitted — only the derived key exists in memory while unlocked</li>
+        </ul>
+
+        <h3>Cloud Sync / Server</h3>
         <ul class="privacy-list">
             <li>🔑 Passwords are hashed with bcrypt (industry standard)</li>
             <li>🍪 Sessions use secure, HttpOnly cookies</li>
@@ -74,17 +110,20 @@
         <h2>📦 Your Rights</h2>
         <p>You have complete control over your data:</p>
         <ul class="privacy-list">
-            <li>📥 <strong>Export anytime</strong> — download all your data as CSV or JSON from <a href="/settings">Settings</a></li>
+            <li>📥 <strong>Export anytime</strong> — download all your data as CSV, JSON, or encrypted backup from <a href="/settings">Settings</a></li>
+            <li>🔄 <strong>Switch modes</strong> — move between local-only and cloud sync via export/import</li>
             <li>🗑️ <strong>Delete anytime</strong> — permanently wipe your account and all associated data from <a href="/settings">Settings</a></li>
             <li>👤 <strong>Update anytime</strong> — change your settings, pronouns, and preferences whenever you want</li>
             <li>🚚 <strong>Migrate anytime</strong> — export your data and import it into your own self-hosted instance</li>
+            <li>📱 <strong>Go offline anytime</strong> — switch to local-only mode and your data stays on your device</li>
         </ul>
     </div>
 
     <div class="card">
         <h2>💛 Why This Matters</h2>
         <p>Period data is deeply personal. In a world where health apps have been caught selling data, sharing with advertisers, or handing records to authorities — Bloom takes a different approach.</p>
-        <p>We built Bloom as open-source software so you don't have to <em>trust</em> us — you can <em>verify</em>. The code is public. The math is documented. And you can always run it yourself.</p>
+        <p>With <strong>local-only mode</strong>, your data is encrypted on your device and never touches a server. The passphrase stays in your head. There's nothing for anyone to subpoena, breach, or sell — because the server never had it in the first place.</p>
+        <p>We built Bloom as open-source software so you don't have to <em>trust</em> us — you can <em>verify</em>. The code is public. The math is documented. The encryption is standard (AES-256-GCM). And you can always run it yourself.</p>
         <p><strong>Your body, your data, your choice. Always.</strong></p>
     </div>
 

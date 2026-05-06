@@ -4,28 +4,28 @@
     <div class="hero-content">
         <div class="hero-icon">🌸</div>
         <h1>Bloom</h1>
-        <p class="hero-tagline">Open-source period tracking. No ads. No BS.</p>
+        <p class="hero-tagline">Open-source period tracking. No ads. No BS. Works offline.</p>
         <p class="hero-desc">
             A period tracker that respects you. No ads. No "you might be pregnant or dying —
-            pay us $2.99 to find out." Just clean, helpful cycle tracking for you and your partner.
-            <a href="/privacy">Self-host for full privacy</a>, or use this instance for convenience.
+            pay us $2.99 to find out." Just clean, helpful cycle tracking — encrypted on your device,
+            no account needed. Or create a cloud account for cross-device sync. Your choice.
         </p>
 
         <div class="features-grid">
             <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Works Offline</h3>
+                <p>Install as an app. Works without internet after first visit. No server needed.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>Encrypted on Device</h3>
+                <p>AES-256 encryption with your passphrase. Even we can't read your data.</p>
+            </div>
+            <div class="feature-card">
                 <div class="feature-icon">📅</div>
                 <h3>Period Prediction</h3>
                 <p>Know when your next period is coming, months in advance.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌱</div>
-                <h3>Phase Tracking</h3>
-                <p>Understand your follicular, ovulation, and luteal phases.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌿</div>
-                <h3>Fertility Window</h3>
-                <p>Track ovulation and your fertile days accurately.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📝</div>
@@ -39,14 +39,39 @@
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
-                <h3>Privacy First</h3>
-                <p>Open-source. No ads. No tracking. No data selling. <a href="/privacy">Self-host for full control</a>.</p>
+                <h3>Zero Data Collection</h3>
+                <p>No account needed. No tracking. No data selling. Open-source and auditable.</p>
             </div>
         </div>
 
         <div class="hero-cta">
-            <a href="/register" class="btn btn-primary btn-lg">Get Started — It's Free</a>
+            <a href="/local" class="btn btn-accent btn-lg">Use Local-Only Mode</a>
+            <a href="/register" class="btn btn-primary btn-lg">Cloud Sync — Free</a>
             <a href="/login" class="btn btn-outline btn-lg">Log In</a>
+        </div>
+
+        <div class="card" style="margin-top: 2.5rem; text-align: left; border-left: 4px solid #2a9d8f;">
+            <h2>📱 How Local-Only Mode Works</h2>
+            <p style="margin-bottom: 1rem;">Three steps. Under a minute. Maximum privacy.</p>
+            <ol style="line-height: 2; padding-left: 1.25rem;">
+                <li><strong>Tap "Use Local-Only Mode"</strong> above — no email or signup needed</li>
+                <li><strong>Create a passphrase</strong> (8+ characters) — this encrypts everything on your device</li>
+                <li><strong>Start tracking</strong> — periods, symptoms, journal. All encrypted. All offline.</li>
+            </ol>
+            <p style="margin-top: 1rem;"><strong>Pro tip:</strong> On your phone, tap the browser menu → "Add to Home Screen" to install Bloom as an app. It'll work without internet after that.</p>
+
+            <h3 style="margin-top: 1.5rem;">🔐 Security Details</h3>
+            <ul style="line-height: 1.9; padding-left: 1.25rem; font-size: 0.9rem;">
+                <li><strong>Encryption:</strong> AES-256-GCM — the same standard used by banks and governments</li>
+                <li><strong>Key derivation:</strong> PBKDF2-SHA256, 210,000 iterations — makes brute-force attacks impractical</li>
+                <li><strong>Auto-lock:</strong> Configurable timeout (2/5/10/30 min) locks data if you step away</li>
+                <li><strong>Passphrase change:</strong> Re-encrypts all data instantly with your new passphrase</li>
+                <li><strong>Zero-knowledge:</strong> Server never receives your data or passphrase. Ever.</li>
+                <li><strong>Backup:</strong> Export encrypted or plain JSON to move between devices</li>
+            </ul>
+
+            <h3 style="margin-top: 1.5rem;">☁️ Want cloud sync later?</h3>
+            <p>Export your data as plain JSON → create a server account → import. You can switch back and forth anytime.</p>
         </div>
     </div>
 </div>

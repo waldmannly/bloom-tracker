@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io"
 	"html/template"
 	"log"
 	"net/http"
@@ -69,9 +70,12 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
+	mux.HandleFunc("/sw.js", serveEmbeddedStatic("static/sw.js", "application/javascript; charset=utf-8", true))
+	mux.HandleFunc("/manifest.webmanifest", serveEmbeddedStatic("static/manifest.webmanifest", "application/manifest+json; charset=utf-8", false))
 
 	// Public routes
 	mux.HandleFunc("/", handleHome)
+	mux.HandleFunc("/local", handleLocalMode)
 	mux.HandleFunc("/login", handleLogin)
 	mux.HandleFunc("/register", handleRegister)
 	mux.HandleFunc("/logout", handleLogout)
@@ -235,6 +239,24 @@ func clearFlash(w http.ResponseWriter) {
 		Path:   "/",
 		MaxAge: -1,
 	})
+}
+
+func serveEmbeddedStatic(path, contentType string, serviceWorkerAllowed bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		f, err := staticFS.Open(path)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		if serviceWorkerAllowed {
+			w.Header().Set("Service-Worker-Allowed", "/")
+		}
+		_, _ = io.Copy(w, f)
+	}
 }
 
 func renderTemplate(w http.ResponseWriter, r *http.Request, pageName string, pd *PageData) {

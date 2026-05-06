@@ -1,0 +1,201 @@
+{{define "title"}}Local-Only Tracker — Bloom{{end}}
+{{define "content"}}
+<div class="local-mode-page">
+    <section class="local-hero">
+        <h1>🔒 Local-Only Tracker</h1>
+        <p><strong>Zero server contact.</strong> Your data never leaves this device — encrypted at rest with your passphrase using AES-256-GCM.</p>
+        <p class="form-hint">Works offline after first visit. Tap your browser menu → "Add to Home Screen" to install as an app.</p>
+    </section>
+
+    <section class="card" style="border-left: 4px solid #2a9d8f;" id="local-getting-started">
+        <h2>🚀 Getting Started</h2>
+        <ol style="line-height: 2; padding-left: 1.25rem;">
+            <li><strong>Create your passphrase</strong> below — pick something strong (8+ characters). This encrypts all your data.</li>
+            <li><strong>Log your cycle</strong> — add period dates, symptoms, and journal entries.</li>
+            <li><strong>Install the app</strong> — on your phone, tap ⋮ menu → "Add to Home Screen" (Android) or Share → "Add to Home Screen" (iOS).</li>
+        </ol>
+        <p style="margin-top: 0.75rem;"><strong>⚠️ Remember your passphrase!</strong> There's no recovery — if you forget it, your data can't be unlocked. Write it down somewhere safe.</p>
+    </section>
+
+    <section class="card security-panel">
+        <h2>🛡️ Device Encryption</h2>
+        <p class="card-desc">All data is encrypted with your passphrase before being saved to this browser. Without the passphrase, the stored data is unreadable — even with physical device access. Your passphrase is never stored or sent anywhere.</p>
+
+        <div id="local-crypto-status" class="form-hint"></div>
+
+        <form id="local-setup-form" class="form-stack" style="display:none;">
+            <div class="form-group">
+                <label for="local-passphrase">Create Passphrase</label>
+                <input type="password" id="local-passphrase" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
+            </div>
+            <div class="form-group">
+                <label for="local-passphrase-confirm">Confirm Passphrase</label>
+                <input type="password" id="local-passphrase-confirm" minlength="8" autocomplete="new-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Enable Encryption</button>
+        </form>
+
+        <form id="local-unlock-form" class="form-stack" style="display:none;">
+            <div class="form-group">
+                <label for="local-unlock-passphrase">Unlock Passphrase</label>
+                <input type="password" id="local-unlock-passphrase" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Unlock Local Data</button>
+        </form>
+
+        <div class="quick-actions" id="local-security-actions" style="display:none;">
+            <button type="button" id="local-lock-btn" class="btn btn-outline">🔒 Lock</button>
+            <button type="button" id="local-change-passphrase-btn" class="btn btn-outline">🔑 Change Passphrase</button>
+        </div>
+    </section>
+
+    <div id="local-app-content" style="display:none;">
+    <section class="card local-summary" id="local-summary"></section>
+
+    <section class="card">
+        <h2>Cycle Settings</h2>
+        <p class="card-desc">These values are only stored locally on this device.</p>
+        <form id="local-profile-form" class="form-stack">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="local-cycle-length">Cycle Length (days)</label>
+                    <input type="number" id="local-cycle-length" min="20" max="45" value="28" required>
+                </div>
+                <div class="form-group">
+                    <label for="local-period-length">Period Length (days)</label>
+                    <input type="number" id="local-period-length" min="2" max="10" value="5" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-accent">Save Local Settings</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Log Period</h2>
+        <form id="local-period-form" class="form-stack">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="local-period-date">Start Date</label>
+                    <input type="date" id="local-period-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="local-period-notes">Notes</label>
+                    <input type="text" id="local-period-notes" placeholder="Optional">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Period Start</button>
+        </form>
+        <div id="local-period-list" class="local-list"></div>
+    </section>
+
+    <section class="card">
+        <h2>Log Symptom</h2>
+        <form id="local-symptom-form" class="form-stack">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="local-symptom-date">Date</label>
+                    <input type="date" id="local-symptom-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="local-symptom-category">Category</label>
+                    <select id="local-symptom-category">
+                        <option value="physical">Physical</option>
+                        <option value="mood">Mood</option>
+                        <option value="energy">Energy</option>
+                        <option value="flow">Flow</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="local-symptom-name">Symptom</label>
+                    <input type="text" id="local-symptom-name" placeholder="e.g. cramps" required>
+                </div>
+                <div class="form-group">
+                    <label for="local-symptom-severity">Severity (1-5)</label>
+                    <input type="number" id="local-symptom-severity" min="1" max="5" value="3" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="local-symptom-notes">Notes</label>
+                <textarea id="local-symptom-notes" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Symptom</button>
+        </form>
+        <div id="local-symptom-list" class="local-list"></div>
+    </section>
+
+    <section class="card">
+        <h2>Journal</h2>
+        <form id="local-journal-form" class="form-stack">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="local-journal-date">Date</label>
+                    <input type="date" id="local-journal-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="local-journal-mood">Mood</label>
+                    <input type="text" id="local-journal-mood" placeholder="🙂">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="local-journal-title">Title</label>
+                <input type="text" id="local-journal-title">
+            </div>
+            <div class="form-group">
+                <label for="local-journal-content">Entry</label>
+                <textarea id="local-journal-content" rows="4" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Journal Entry</button>
+        </form>
+        <div id="local-journal-list" class="local-list"></div>
+    </section>
+
+    <section class="card">
+        <h2>💾 Backup &amp; Sync</h2>
+        <p class="card-desc">Export your data to move between devices, keep offline backups, or switch to server mode.</p>
+
+        <h3 style="margin-top: 1rem;">Export Options</h3>
+        <ul style="font-size: 0.9rem; line-height: 1.8; padding-left: 1.25rem; margin-bottom: 1rem;">
+            <li><strong>🔐 Encrypted Backup</strong> — Protected with a passphrase you choose. Safe to store in cloud drives, email to yourself, etc. Only you can open it.</li>
+            <li><strong>📄 Plain JSON</strong> — Unencrypted, human-readable. Use this to import into a Bloom server account or just read your data directly.</li>
+        </ul>
+
+        <div class="quick-actions">
+            <button type="button" id="local-export-encrypted-btn" class="btn btn-primary">🔐 Encrypted Backup</button>
+            <button type="button" id="local-export-btn" class="btn btn-outline">📄 Plain JSON Export</button>
+            <label for="local-import-input" class="btn btn-outline">📥 Import Backup</label>
+            <input type="file" id="local-import-input" accept="application/json" style="display:none;">
+        </div>
+
+        <h3 style="margin-top: 1.25rem;">Import</h3>
+        <p class="form-hint">Import any Bloom backup file (encrypted or plain). Encrypted files will ask for the passphrase used during export. Importing merges with your existing data.</p>
+    </section>
+
+    <section class="card">
+        <h2>⚙️ Settings</h2>
+        <p class="card-desc">Configure security and privacy options for your local vault.</p>
+
+        <h3 style="margin-top: 1rem;">⏱️ Auto-Lock Timer</h3>
+        <p class="form-hint">Automatically locks your data after inactivity. If someone picks up your phone, they'll need your passphrase to see anything.</p>
+
+        <h3 style="margin-top: 1rem;">🔑 Change Passphrase</h3>
+        <p class="form-hint">Re-encrypts all your data with a new passphrase. Use this if you think someone saw your passphrase, or just want to update it. Your data stays intact — only the encryption key changes.</p>
+
+        <h3 style="margin-top: 1rem;">🔄 Switch to Cloud</h3>
+        <p class="form-hint">Want cross-device sync or partner features? Export your data as Plain JSON (in Backup section above), then <a href="/register">create a server account</a> and import it there.</p>
+
+        <div id="local-settings-content"></div>
+    </section>
+
+    <section class="card">
+        <h2>⚠️ Danger Zone</h2>
+        <p class="card-desc">Permanently delete all local data from this browser. This cannot be undone. Make sure you've exported a backup first if you want to keep your data.</p>
+        <div class="quick-actions">
+            <button type="button" id="local-clear-btn" class="btn btn-danger">🗑️ Erase All Local Data</button>
+        </div>
+    </section>
+    </div>
+</div>
+<script src="/static/local-mode.js"></script>
+{{end}}

@@ -31,6 +31,15 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, r, "home", pd)
 }
 
+func handleLocalMode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Redirect(w, r, "/local", http.StatusSeeOther)
+		return
+	}
+	pd := newPageData(r)
+	renderTemplate(w, r, "local", pd)
+}
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 type dashboardData struct {

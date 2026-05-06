@@ -2,9 +2,9 @@
 
 **Your cycle, your data, your privacy. No ads. No tracking. No BS.**
 
-Bloom is a free, open-source, self-hosted period tracking app. One binary. No cloud. No subscriptions. Just a simple, beautiful tool that respects your privacy.
+Bloom is a free, open-source period tracking app that works **completely offline on your phone** — no account, no server, no cloud. Or self-host for cross-device sync. Your choice.
 
-Built for people who want to understand their bodies — and partners who want to be supportive.
+One binary. Zero data collection. AES-256 encrypted. Installable as a PWA. Built for people who want to understand their bodies — and partners who want to be supportive.
 
 ## ✨ Features
 
@@ -32,11 +32,20 @@ Built for people who want to understand their bodies — and partners who want t
 - 🚨 **Instant symptom alerts** — partner is notified immediately when severity is high (4-5)
 - 🔄 **Phase change alerts** — partner is emailed when your cycle phase changes
 
+### Offline-First PWA (No Account Needed)
+- 📲 **Installable PWA** — add to home screen, works like a native app
+- ✈️ **Fully offline** — after first visit, works with zero internet connection
+- 🔐 **Device encryption** — AES-256-GCM with PBKDF2 (210k iterations), passphrase never leaves your device
+- 🧠 **Zero-knowledge** — server never sees your data in local-only mode
+- ⏱️ **Auto-lock** — configurable inactivity timeout (2/5/10/30 min)
+- 🔑 **Passphrase change** — re-encrypt all data with a new passphrase anytime
+- 🔄 **Swap modes** — move between local-only and cloud sync via export/import
+
 ### Privacy & Data
-- 🔒 **100% local** — SQLite database, nothing leaves your server
-- 🛡️ **Database encryption** — optional AES-256-GCM at-rest encryption with your own key
-- 🔐 **Encrypted backups** — AES-256-GCM with password protection
-- 📦 **Data export** — download everything as CSV or JSON
+- 🔒 **100% local option** — no signup, no server contact, encrypted in browser
+- 🛡️ **Server-side encryption** — optional AES-256-GCM database-at-rest encryption
+- 🔐 **Encrypted backups** — export passphrase-protected backup files (AES-256-GCM)
+- 📦 **Data export** — download everything as CSV, JSON, or encrypted backup
 - 🗑️ **Account deletion** — full data wipe with password confirmation
 - 📖 **Transparent calculations** — see exactly how predictions are made
 - 🌿 **Fertility toggle** — hide fertility data if you don't want it
@@ -46,16 +55,28 @@ Built for people who want to understand their bodies — and partners who want t
 - 📥 **Bulk import** — paste period history in flexible date formats
 - 📄 **Import template** — downloadable CSV template
 - 📤 **Backup restore** — restore encrypted backups to any Bloom instance
+- 🔄 **Local ↔ Cloud** — export from local mode, import to server (or vice versa)
 
 ## 🚀 Quick Start
 
-### Option 0: Try It Now (Hosted Demo)
+### Option 0: Use It Right Now — No Account (Maximum Privacy)
 
-Don't want to install anything? We host a free instance you can use right now:
+Visit any Bloom instance and click **"Local-Only Mode"**. No signup. No email. No server storage.
+
+**👉 [bloom.gorillawiz.com/local](https://bloom.gorillawiz.com/local)**
+
+- Your data is encrypted with your passphrase (AES-256) and stored only in your browser
+- Works offline after first visit — install it to your home screen as an app
+- The server literally cannot read your data. Zero-knowledge.
+- Export anytime to move between devices or switch to cloud sync later
+
+### Option 0b: Hosted Cloud Sync
+
+Want cross-device access and partner features? Create an account on a hosted instance:
 
 **👉 [bloom.gorillawiz.com](https://bloom.gorillawiz.com)**
 
-> ⚠️ **Privacy note:** This is a shared hosted instance. While we encrypt the database at rest and don't sell or share data, your information lives on our server — not yours. For maximum privacy, [self-host Bloom](#-self-hosting-guide). It takes about 5 minutes.
+> ⚠️ **Privacy note:** This is a shared hosted instance. While we encrypt the database at rest and don't sell or share data, your information lives on our server — not yours. For maximum privacy, use [local-only mode](#option-0-use-it-right-now--no-account-maximum-privacy) or [self-host Bloom](#-self-hosting-guide).
 
 ### Option 1: Docker (Recommended)
 
@@ -116,22 +137,37 @@ bloom (single Go binary)
 - **Auth:** bcrypt passwords, secure session cookies
 - **Templates:** Go html/template with embedded filesystem
 - **Email:** SMTP or HTTP API (optional, for partner notifications)
-- **Encryption:** AES-256-GCM with PBKDF2 key derivation (for backups and database-at-rest encryption)
+- **Encryption:** AES-256-GCM with PBKDF2 key derivation (server-side database + backups)
+- **Client Encryption:** Web Crypto API — AES-256-GCM, PBKDF2-SHA256 210k iterations (local-only mode)
+- **PWA:** Service worker with offline-first caching, installable to home screen
 
 No React. No Node. No Docker required. No cloud services. Just one binary that embeds everything.
 
 ## 🔒 Privacy
 
-- **Self-hosted = full privacy.** Data on your hardware, under your control. Nobody else can access it.
-- **Hosted instances are convenient** but your data lives on someone else's server. You're trusting the operator.
+Bloom offers **three tiers of privacy** — pick the level you're comfortable with:
+
+| Mode | Data Location | Who Can Access | Encryption |
+|------|--------------|----------------|------------|
+| **Local-only (PWA)** | Your browser only | Only you (with passphrase) | AES-256-GCM, PBKDF2 210k iterations |
+| **Self-hosted server** | Your own machine | Only you (physical access) | Optional AES-256-GCM at rest |
+| **Hosted instance** | Operator's server | You + server operator | AES-256-GCM at rest |
+
+**In all modes:**
 - No analytics, telemetry, or tracking scripts
-- No third-party API calls or cloud sync
+- No third-party API calls
 - No data selling — ever
-- Optional database-at-rest encryption with your own key
-- Encrypted backups use AES-256-GCM (your password never leaves your browser)
-- Full data export (CSV/JSON) and account deletion at any time
-- Bloom is fully open-source — verify what the code does, then self-host for maximum privacy
+- No ads — ever
+- Fully open-source — verify what the code does
+- Full data export and account deletion at any time
 - See `/privacy` in the app for the full policy
+
+**Local-only mode specifically:**
+- Server never receives, stores, or processes your data
+- Passphrase-derived key never leaves your device
+- Works completely offline after first page load
+- Auto-locks after configurable inactivity period
+- Encrypted backups let you move between devices without cloud
 
 ## 🛡️ Database Encryption
 

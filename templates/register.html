@@ -3,24 +3,39 @@
 <div class="auth-page">
     <div class="auth-card">
         <h1>Create Account 🌱</h1>
-        <p class="auth-subtitle">Start tracking your cycle</p>
+        <p class="auth-subtitle">Choose local-only privacy or cloud sync</p>
 
         <form method="POST" action="/register" class="auth-form">
+            <div class="storage-choice" role="radiogroup" aria-label="Storage mode">
+                <label class="storage-option active" id="storage-local-card">
+                    <input type="radio" name="storage_mode" value="local" checked>
+                    <span>Local-only (recommended privacy)</span>
+                    <small>Runs without signup. Data stays in this browser.</small>
+                </label>
+                <label class="storage-option" id="storage-cloud-card">
+                    <input type="radio" name="storage_mode" value="cloud">
+                    <span>Cloud sync account</span>
+                    <small>Creates an account and stores data on this server.</small>
+                </label>
+            </div>
+
+            <div id="cloud-signup-fields" style="display:none;">
             <div class="form-group">
                 <label for="name">Name</label>
-                <input type="text" id="name" name="name" required autofocus placeholder="Your name">
+                <input type="text" id="name" name="name" placeholder="Your name">
             </div>
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="you@example.com">
+                <input type="email" id="email" name="email" placeholder="you@example.com">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required minlength="8" placeholder="At least 8 characters">
+                <input type="password" id="password" name="password" minlength="8" placeholder="At least 8 characters">
             </div>
             <div class="form-group">
                 <label for="confirm">Confirm Password</label>
-                <input type="password" id="confirm" name="confirm" required placeholder="••••••••">
+                <input type="password" id="confirm" name="confirm" placeholder="••••••••">
+            </div>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Create Account</button>
         </form>

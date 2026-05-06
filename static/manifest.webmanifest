@@ -1,0 +1,20 @@
+{
+  "name": "Bloom Period Tracker",
+  "short_name": "Bloom",
+  "description": "Ultra-private period tracker. Encrypted local storage. Works offline. No account needed.",
+  "start_url": "/local",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF9F9",
+  "theme_color": "#D4788C",
+  "orientation": "portrait-primary",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='150'%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
