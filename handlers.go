@@ -36,8 +36,7 @@ func handleLocalMode(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/local", http.StatusSeeOther)
 		return
 	}
-	pd := newPageData(r)
-	renderTemplate(w, r, "local", pd)
+	renderLocalTemplate(w)
 }
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────

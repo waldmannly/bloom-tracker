@@ -339,3 +339,16 @@ func renderTemplate(w http.ResponseWriter, r *http.Request, pageName string, pd 
 		log.Printf("Template execute error (%s): %v", pageName, err)
 	}
 }
+
+func renderLocalTemplate(w http.ResponseWriter) {
+	tmpl, err := template.New("").ParseFS(templateFS, "templates/local.html")
+	if err != nil {
+		log.Printf("Local template parse error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "local", nil); err != nil {
+		log.Printf("Local template execute error: %v", err)
+	}
+}

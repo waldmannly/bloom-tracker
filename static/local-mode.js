@@ -920,6 +920,7 @@ function init() {
 
     // Security buttons
     document.getElementById('btn-lock').addEventListener('click', lockVault);
+    document.getElementById('btn-lock-nav').addEventListener('click', lockVault);
     document.getElementById('btn-change-pass').addEventListener('click', async () => {
         const newPass = prompt('New passphrase (8+ chars):');
         if (!newPass || newPass.length < 8) { alert('Must be 8+ characters.'); return; }

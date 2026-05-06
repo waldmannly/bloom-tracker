@@ -1,5 +1,15 @@
-{{define "title"}}Bloom — Local Mode{{end}}
-{{define "content"}}
+{{define "local"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloom — Local Mode</title>
+    <meta name="theme-color" content="#D4788C">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+</head>
+<body>
 <div id="local-app">
 
     <!-- Lock Screen -->
@@ -46,18 +56,24 @@
     <!-- Main App (hidden until unlocked) -->
     <div id="app-main" style="display:none;">
 
-        <!-- Navigation Tabs -->
-        <nav class="local-nav">
-            <button class="local-nav-btn active" data-tab="dashboard">🌸</button>
-            <button class="local-nav-btn" data-tab="log-period">🩸</button>
-            <button class="local-nav-btn" data-tab="symptoms">📝</button>
-            <button class="local-nav-btn" data-tab="journal">📔</button>
-            <button class="local-nav-btn" data-tab="calendar">📅</button>
-            <button class="local-nav-btn" data-tab="trends">📊</button>
-            <button class="local-nav-btn" data-tab="settings">⚙️</button>
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <div class="nav-inner">
+                <span class="nav-brand">🌸 Bloom <span class="nav-badge-local">Local</span></span>
+                <div class="local-nav" id="local-nav-links">
+                    <button class="local-nav-btn active" data-tab="dashboard" title="Dashboard">🌸</button>
+                    <button class="local-nav-btn" data-tab="log-period" title="Log Period">🩸</button>
+                    <button class="local-nav-btn" data-tab="symptoms" title="Symptoms">📝</button>
+                    <button class="local-nav-btn" data-tab="journal" title="Journal">📔</button>
+                    <button class="local-nav-btn" data-tab="calendar" title="Calendar">📅</button>
+                    <button class="local-nav-btn" data-tab="trends" title="Trends">📊</button>
+                    <button class="local-nav-btn" data-tab="settings" title="Settings">⚙️</button>
+                </div>
+                <button class="btn btn-sm btn-outline" id="btn-lock-nav" title="Lock">🔒</button>
+            </div>
         </nav>
 
-        <!-- ═══ DASHBOARD ═══ -->
+        <main class="container">
         <section id="tab-dashboard" class="local-tab active">
             <div class="dashboard">
                 <div id="dash-empty" class="empty-state" style="display:none;">
@@ -327,8 +343,11 @@
             </details>
         </section>
 
+        </main>
     </div>
 </div>
 
 <script src="/static/local-mode.js"></script>
+</body>
+</html>
 {{end}}

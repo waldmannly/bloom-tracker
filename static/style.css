@@ -346,34 +346,39 @@ input:focus, textarea:focus, select:focus {
 
 .local-nav {
     display: flex;
-    gap: 0;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    align-items: center;
+    gap: 0.25rem;
 }
 .local-nav-btn {
-    flex: 1;
-    padding: 0.75rem 0.5rem;
+    padding: 0.5rem 0.6rem;
     border: none;
     background: transparent;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    transition: background 0.2s, border-bottom 0.2s;
-    border-bottom: 3px solid transparent;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
 }
 .local-nav-btn:hover { background: var(--pink-light); }
-.local-nav-btn.active { background: var(--pink-light); border-bottom-color: var(--primary); }
+.local-nav-btn.active { background: var(--pink-light); box-shadow: 0 0 0 2px var(--primary); }
+
+.nav-badge-local {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--teal-light);
+    color: #2f6f6b;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+}
 
 .local-tab { display: none; }
 .local-tab.active { display: block; }
 
-@media (max-width: 600px) {
-    .local-nav-btn { padding: 0.6rem 0.25rem; font-size: 1.1rem; }
+@media (max-width: 700px) {
+    .local-nav-btn { padding: 0.4rem; font-size: 1rem; }
+    .nav-badge-local { display: none; }
 }
 
 .local-hero {
