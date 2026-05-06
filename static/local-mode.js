@@ -373,10 +373,13 @@ function renderSymptoms() {
 
     const sorted = [...data.symptoms].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
     document.getElementById('symptom-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No symptoms logged yet.</p>' :
-        sorted.map(s => `<div class="history-item">
-            <div><strong>${formatDate(s.date)}</strong> — ${s.symptoms.join(', ')} <span class="form-hint">(${s.severity}/5)</span></div>
+        sorted.map(s => {
+            const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
+            return `<div class="history-item">
+            <div><strong>${formatDate(s.date)}</strong> — ${syms.join(', ')} <span class="form-hint">(${s.severity}/5)</span></div>
             <button class="btn btn-xs btn-danger" onclick="deleteSymptom('${s.id}')">✕</button>
-        </div>`).join('');
+        </div>`;
+        }).join('');
 }
 
 window.deleteSymptom = function(id) {
@@ -440,10 +443,12 @@ function renderCalendar() {
     // Build period date set
     const periodDates = new Set();
     data.periods.forEach(p => {
+        if (!p.startDate) return;
         const s = midnight(new Date(p.startDate));
-        const e = p.endDate ? midnight(new Date(p.endDate)) : midnight(new Date());
-        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-            periodDates.add(formatDateInput(d));
+        const e = p.endDate ? midnight(new Date(p.endDate)) : s;
+        const numDays = daysBetween(s, e);
+        for (let i = 0; i <= numDays; i++) {
+            periodDates.add(formatDateInput(new Date(s.getTime() + i * 86400000)));
         }
     });
 
@@ -545,7 +550,10 @@ function renderTrends() {
 
     // Symptom frequency
     const symFreq = {};
-    data.symptoms.forEach(s => s.symptoms.forEach(name => { symFreq[name] = (symFreq[name] || 0) + 1; }));
+    data.symptoms.forEach(s => {
+        const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
+        syms.forEach(name => { symFreq[name] = (symFreq[name] || 0) + 1; });
+    });
     const topSymptoms = Object.entries(symFreq).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const maxSym = topSymptoms.length ? topSymptoms[0][1] : 1;
 
@@ -606,19 +614,45 @@ async function importFile(file) {
         } catch { alert('Wrong passphrase or corrupted backup.'); return; }
     }
 
+    // Normalize server export format (snake_case → camelCase)
+    const normPeriods = (imported.periods || []).map(p => ({
+        id: p.id || uid(),
+        startDate: p.startDate || p.start_date,
+        endDate: p.endDate || p.end_date || null
+    }));
+    const normSymptoms = (imported.symptoms || []).map(s => ({
+        id: s.id || uid(),
+        date: s.date,
+        category: s.category || 'physical',
+        symptoms: s.symptoms || (s.symptom ? [s.symptom] : []),
+        severity: s.severity || 3,
+        notes: s.notes || ''
+    }));
+    const normJournal = (imported.journal || []).map(j => ({
+        id: j.id || uid(),
+        date: j.date,
+        mood: j.mood || '',
+        title: j.title || '',
+        content: j.content || ''
+    }));
+
     // Merge or replace
-    if (imported.periods || imported.symptoms || imported.journal) {
+    if (normPeriods.length || normSymptoms.length || normJournal.length) {
         const merge = confirm('Merge with existing data? (Cancel = replace all)');
         if (merge) {
             const existingPeriodDates = new Set(data.periods.map(p => p.startDate));
-            (imported.periods || []).forEach(p => { if (!existingPeriodDates.has(p.startDate)) data.periods.push({ ...p, id: p.id || uid() }); });
-            (imported.symptoms || []).forEach(s => data.symptoms.push({ ...s, id: s.id || uid() }));
-            (imported.journal || []).forEach(j => data.journal.push({ ...j, id: j.id || uid() }));
+            normPeriods.forEach(p => { if (!existingPeriodDates.has(p.startDate)) data.periods.push(p); });
+            normSymptoms.forEach(s => data.symptoms.push(s));
+            normJournal.forEach(j => data.journal.push(j));
         } else {
-            data.periods = (imported.periods || []).map(p => ({ ...p, id: p.id || uid() }));
-            data.symptoms = (imported.symptoms || []).map(s => ({ ...s, id: s.id || uid() }));
-            data.journal = (imported.journal || []).map(j => ({ ...j, id: j.id || uid() }));
+            data.periods = normPeriods;
+            data.symptoms = normSymptoms;
+            data.journal = normJournal;
             if (imported.settings) data.settings = { ...data.settings, ...imported.settings };
+            if (imported.user) {
+                if (imported.user.cycle_length) data.settings.cycleLength = imported.user.cycle_length;
+                if (imported.user.period_length) data.settings.periodLength = imported.user.period_length;
+            }
         }
         await saveData();
         alert('Import complete!');
