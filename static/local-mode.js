@@ -287,9 +287,62 @@ function renderDashboard() {
             <div class="wellness-card wellness-nutrition">
                 <div class="wellness-icon">🥗</div><h3>Nutrition</h3>
                 <p class="wellness-tip">${pd.nutrition.tip}</p>
-                <div class="wellness-tags">${pd.nutrition.foods.map(f => `<span class="wellness-tag nutrition-tag">${f}</span>`).join('')}</div>
+                <div class="wellness-tags">${pd.nutrition.foods.map(f => `<span class="wellness-tag food-tag">${f}</span>`).join('')}</div>
+            </div>
+            <div class="wellness-card wellness-nutrients">
+                <div class="wellness-icon">💊</div><h3>Key Nutrients</h3>
+                <p class="wellness-tip">Focus on these nutrients during this phase:</p>
+                <div class="wellness-tags">${pd.nutrition.nutrients.map(n => `<span class="wellness-tag nutrient-tag">${n}</span>`).join('')}</div>
             </div>
         </div>`;
+
+    // Predictions
+    const predictions = generatePredictions(info);
+    document.getElementById('dash-predictions').innerHTML = predictions.length ? `
+        <h2>📅 Upcoming Predictions</h2>
+        <div class="predictions-grid">${predictions.map(p => `
+            <div class="prediction-card">
+                <div class="prediction-header">🩸 Period</div>
+                <div class="prediction-dates">${formatDate(p.periodStart)} — ${formatDate(p.periodEnd)}</div>
+                ${data.settings.showFertility ? `<div class="prediction-details">
+                    <span>🌸 Ovulation: ${formatDate(p.ovulation)}</span>
+                    <span>🌿 Fertile: ${formatDate(p.fertileStart)} — ${formatDate(p.fertileEnd)}</span>
+                </div>` : ''}
+            </div>`).join('')}</div>` : '';
+
+    // Recent symptoms on dashboard
+    const recentSyms = [...data.symptoms].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    document.getElementById('dash-recent-symptoms').innerHTML = recentSyms.length ? `
+        <h2>📝 Recent Symptoms</h2>
+        <div class="symptom-list">${recentSyms.map(s => {
+            const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
+            const dots = '●'.repeat(s.severity) + '○'.repeat(5 - s.severity);
+            return `<div class="symptom-row">
+                <span class="symptom-date">${new Date(s.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
+                <span class="symptom-badge cat-${s.category}">${s.category}</span>
+                <span class="symptom-name">${syms.join(', ')}</span>
+                <span class="severity-dots">${dots}</span>
+            </div>`;
+        }).join('')}</div>` : '';
+}
+
+function generatePredictions(info) {
+    if (!info) return [];
+    const predictions = [];
+    const lastPeriod = getLastPeriodStart();
+    if (!lastPeriod) return [];
+    const baseStart = midnight(new Date(lastPeriod.startDate));
+    for (let i = 1; i <= 3; i++) {
+        const cycleStart = new Date(baseStart.getTime() + i * info.cycleLen * 86400000);
+        const periodEnd = new Date(cycleStart.getTime() + (info.periodLen - 1) * 86400000);
+        const ovulation = new Date(cycleStart.getTime() + (info.ovulationDay - 1) * 86400000);
+        const fertileStart = new Date(cycleStart.getTime() + (info.ovulationDay - 6) * 86400000);
+        const fertileEnd = new Date(cycleStart.getTime() + info.ovulationDay * 86400000);
+        if (cycleStart > new Date()) {
+            predictions.push({ periodStart: cycleStart, periodEnd, ovulation, fertileStart, fertileEnd });
+        }
+    }
+    return predictions;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -521,50 +574,117 @@ function renderTrends() {
     document.getElementById('trends-empty').style.display = 'none';
     document.getElementById('trends-content').style.display = '';
 
-    const sorted = [...data.periods].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const sorted = [...data.periods].filter(p => p.startDate).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     const cycles = [];
     for (let i = 1; i < sorted.length; i++) {
         const len = daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i].startDate));
+        if (len <= 0 || len > 90) continue; // skip bad data
         const pDays = sorted[i - 1].endDate ? daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i - 1].endDate)) : null;
         const month = new Date(sorted[i - 1].startDate).toLocaleDateString('en-US', { month: 'short' });
         cycles.push({ len, pDays, month });
     }
 
+    if (!cycles.length) {
+        document.getElementById('trends-empty').style.display = '';
+        document.getElementById('trends-content').style.display = 'none';
+        return;
+    }
+
     const avgLen = (cycles.reduce((s, c) => s + c.len, 0) / cycles.length).toFixed(1);
     const maxLen = Math.max(...cycles.map(c => c.len));
+    const shortestCycle = Math.min(...cycles.map(c => c.len));
+    const longestCycle = maxLen;
 
     document.getElementById('trends-stats').innerHTML = `
         <div class="stat-card"><div class="stat-number">${avgLen}</div><div class="stat-label">avg cycle length</div></div>
+        <div class="stat-card"><div class="stat-number">${shortestCycle}–${longestCycle}</div><div class="stat-label">cycle range (days)</div></div>
         <div class="stat-card"><div class="stat-number">${data.periods.length}</div><div class="stat-label">periods logged</div></div>
-        <div class="stat-card"><div class="stat-number">${data.symptoms.length}</div><div class="stat-label">symptoms logged</div></div>
-        <div class="stat-card"><div class="stat-number">${cycles.length}</div><div class="stat-label">cycles tracked</div></div>`;
+        <div class="stat-card"><div class="stat-number">${data.symptoms.length}</div><div class="stat-label">symptoms logged</div></div>`;
 
+    // Cycle length chart
     document.getElementById('trends-cycle-chart').innerHTML = `
         <h2>📏 Cycle Length Over Time</h2>
-        <div class="chart-card"><div class="bar-chart">${cycles.map(c => `
+        <p class="section-subtitle">How your cycle length varies month to month</p>
+        <div class="chart-card"><div class="bar-chart">${cycles.slice(-12).map(c => `
             <div class="bar-col">
                 <div class="bar-value">${c.len}d</div>
                 <div class="bar-track"><div class="bar-fill cycle-bar" style="height:${(c.len / maxLen * 100).toFixed(0)}%"></div></div>
                 <div class="bar-label">${c.month}</div>
             </div>`).join('')}</div></div>`;
 
-    // Symptom frequency
+    // Period duration chart
+    const withDuration = cycles.filter(c => c.pDays && c.pDays > 0 && c.pDays <= 15);
+    const maxPDays = withDuration.length ? Math.max(...withDuration.map(c => c.pDays)) : 10;
+    document.getElementById('trends-period-chart').innerHTML = withDuration.length ? `
+        <h2>🩸 Period Duration</h2>
+        <p class="section-subtitle">How many days each period lasted</p>
+        <div class="chart-card"><div class="bar-chart">${withDuration.slice(-12).map(c => `
+            <div class="bar-col">
+                <div class="bar-value">${c.pDays}d</div>
+                <div class="bar-track"><div class="bar-fill period-bar" style="height:${(c.pDays / maxPDays * 100).toFixed(0)}%"></div></div>
+                <div class="bar-label">${c.month}</div>
+            </div>`).join('')}</div></div>` : '';
+
+    // Symptom frequency — horizontal bar style like server
     const symFreq = {};
+    const symSev = {};
     data.symptoms.forEach(s => {
         const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
-        syms.forEach(name => { symFreq[name] = (symFreq[name] || 0) + 1; });
+        syms.forEach(name => {
+            symFreq[name] = (symFreq[name] || 0) + 1;
+            symSev[name] = (symSev[name] || []);
+            symSev[name].push(s.severity || 3);
+        });
     });
-    const topSymptoms = Object.entries(symFreq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const topSymptoms = Object.entries(symFreq).sort((a, b) => b[1] - a[1]).slice(0, 10);
     const maxSym = topSymptoms.length ? topSymptoms[0][1] : 1;
 
     document.getElementById('trends-symptom-chart').innerHTML = topSymptoms.length ? `
         <h2>📝 Most Common Symptoms</h2>
-        <div class="chart-card"><div class="bar-chart">${topSymptoms.map(([name, count]) => `
-            <div class="bar-col">
-                <div class="bar-value">${count}</div>
-                <div class="bar-track"><div class="bar-fill period-bar" style="height:${(count / maxSym * 100).toFixed(0)}%"></div></div>
-                <div class="bar-label">${name.split(' ')[0]}</div>
-            </div>`).join('')}</div></div>` : '';
+        <p class="section-subtitle">Your most frequently logged symptoms</p>
+        <div class="symptom-trend-list">${topSymptoms.map(([name, count]) => {
+            const avg = (symSev[name].reduce((a, b) => a + b, 0) / symSev[name].length).toFixed(1);
+            return `<div class="symptom-trend-row">
+                <div class="symptom-trend-info">
+                    <span class="symptom-trend-name">${name}</span>
+                </div>
+                <div class="symptom-trend-stats">
+                    <span class="trend-count">${count}×</span>
+                    <div class="trend-bar-track">
+                        <div class="trend-bar-fill" style="width:${(count / maxSym * 100).toFixed(0)}%"></div>
+                    </div>
+                    <span class="trend-avg">avg ${avg}/5</span>
+                </div>
+            </div>`;
+        }).join('')}</div>` : '';
+
+    // Month-by-month overview
+    const monthData = {};
+    data.periods.forEach(p => {
+        if (!p.startDate) return;
+        const d = new Date(p.startDate);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!monthData[key]) monthData[key] = { periods: 0, symptoms: 0, month: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear() };
+        monthData[key].periods++;
+    });
+    data.symptoms.forEach(s => {
+        if (!s.date) return;
+        const d = new Date(s.date);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!monthData[key]) monthData[key] = { periods: 0, symptoms: 0, month: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear() };
+        monthData[key].symptoms++;
+    });
+    const months = Object.values(monthData).slice(-12);
+    document.getElementById('trends-months').innerHTML = months.length > 2 ? `
+        <h2>📅 Month by Month</h2>
+        <p class="section-subtitle">Activity over the last 12 months</p>
+        <div class="month-grid">${months.map(m => `
+            <div class="month-cell ${m.periods ? 'has-data' : ''}">
+                <div class="month-name">${m.month}</div>
+                <div class="month-year">${m.year}</div>
+                ${m.periods ? `<div class="month-stat">🩸 ${m.periods}</div>` : ''}
+                ${m.symptoms ? `<div class="month-stat">📝 ${m.symptoms}</div>` : ''}
+            </div>`).join('')}</div>` : '';
 }
 
 // ═══════════════════════════════════════════════════════════════════
