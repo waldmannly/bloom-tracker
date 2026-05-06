@@ -252,11 +252,12 @@ function renderDashboard() {
     document.getElementById('dash-content').style.display = '';
 
     const pd = phaseData[info.phase];
+    const greeting = data.settings.displayName ? `Hi ${escHtml(data.settings.displayName)}! ` : '';
 
     document.getElementById('dash-phase-hero').className = 'phase-hero phase-' + pd.color;
     document.getElementById('dash-phase-hero').innerHTML = `
         <div class="phase-emoji">${pd.emoji}</div>
-        <h1>${info.phase.charAt(0).toUpperCase() + info.phase.slice(1)} Phase</h1>
+        <h1>${greeting}${info.phase.charAt(0).toUpperCase() + info.phase.slice(1)} Phase</h1>
         <p class="phase-desc">${pd.desc}</p>`;
 
     let stats = `
@@ -685,6 +686,120 @@ function renderTrends() {
                 ${m.periods ? `<div class="month-stat">🩸 ${m.periods}</div>` : ''}
                 ${m.symptoms ? `<div class="month-stat">📝 ${m.symptoms}</div>` : ''}
             </div>`).join('')}</div>` : '';
+
+    // Symptom × Phase Correlation
+    renderPhaseCorrelation(sorted, topSymptoms);
+
+    // Year at a Glance
+    renderYearAtGlance();
+}
+
+function renderPhaseCorrelation(sortedPeriods, topSymptoms) {
+    if (!topSymptoms.length || sortedPeriods.length < 2) {
+        document.getElementById('trends-correlation').innerHTML = '';
+        return;
+    }
+
+    const cycleLen = data.settings.cycleLength;
+    const periodLen = data.settings.periodLength;
+    const ovDay = Math.max(cycleLen - 14, periodLen + 1);
+    const phases = ['menstruation', 'follicular', 'ovulation', 'luteal'];
+    const phaseEmoji = { menstruation: '🌺', follicular: '🌱', ovulation: '🌸', luteal: '🌙' };
+
+    function getPhaseForDate(dateStr) {
+        const date = midnight(new Date(dateStr));
+        // Find which cycle this date belongs to
+        for (let i = sortedPeriods.length - 1; i >= 0; i--) {
+            const start = midnight(new Date(sortedPeriods[i].startDate));
+            const diff = daysBetween(start, date);
+            if (diff >= 0 && diff < cycleLen) {
+                const day = diff + 1;
+                if (day <= periodLen) return 'menstruation';
+                if (day < ovDay - 1) return 'follicular';
+                if (day <= ovDay + 1) return 'ovulation';
+                return 'luteal';
+            }
+        }
+        return null;
+    }
+
+    // Count symptoms per phase
+    const corr = {};
+    topSymptoms.forEach(([name]) => { corr[name] = { menstruation: 0, follicular: 0, ovulation: 0, luteal: 0 }; });
+
+    data.symptoms.forEach(s => {
+        const phase = getPhaseForDate(s.date);
+        if (!phase) return;
+        const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
+        syms.forEach(name => { if (corr[name]) corr[name][phase]++; });
+    });
+
+    const maxCorr = Math.max(1, ...Object.values(corr).flatMap(p => Object.values(p)));
+
+    document.getElementById('trends-correlation').innerHTML = `
+        <h2>🔬 Symptom × Phase Correlation</h2>
+        <p class="section-subtitle">Which symptoms appear in which cycle phases</p>
+        <div class="correlation-grid">
+            <div class="correlation-header">
+                <div class="corr-label">Symptom</div>
+                ${phases.map(p => `<div class="corr-phase">${phaseEmoji[p]}</div>`).join('')}
+            </div>
+            ${topSymptoms.slice(0, 8).map(([name]) => `
+            <div class="correlation-row">
+                <div class="corr-label"><span class="symptom-badge">${name}</span></div>
+                ${phases.map(p => {
+                    const count = corr[name][p];
+                    const level = count === 0 ? 0 : Math.min(3, Math.ceil(count / maxCorr * 3));
+                    return `<div class="corr-cell"><span class="corr-dot corr-level-${level}" title="${count}×">${count || ''}</span></div>`;
+                }).join('')}
+            </div>`).join('')}
+        </div>`;
+}
+
+function renderYearAtGlance() {
+    const today = new Date();
+    const periodDates = new Set();
+    data.periods.forEach(p => {
+        if (!p.startDate) return;
+        const s = midnight(new Date(p.startDate));
+        const e = p.endDate ? midnight(new Date(p.endDate)) : s;
+        const numDays = daysBetween(s, e);
+        for (let i = 0; i <= Math.min(numDays, 15); i++) {
+            periodDates.add(formatDateInput(new Date(s.getTime() + i * 86400000)));
+        }
+    });
+
+    const monthsHtml = [];
+    for (let m = 0; m < 12; m++) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() - 11 + m, 1);
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const name = monthDate.toLocaleDateString('en-US', { month: 'short' });
+        const firstDay = new Date(year, month, 1).getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
+        const todayStr = formatDateInput(today);
+
+        let days = '';
+        for (let pad = 0; pad < firstDay; pad++) days += '<span class="mini-day empty"></span>';
+        for (let d = 1; d <= lastDate; d++) {
+            const ds = formatDateInput(new Date(year, month, d));
+            let cls = 'mini-day';
+            if (ds === todayStr) cls += ' today';
+            if (periodDates.has(ds)) cls += ' period';
+            days += `<span class="${cls}">${d}</span>`;
+        }
+
+        monthsHtml.push(`<div class="mini-month">
+            <div class="mini-month-name">${name} ${year !== today.getFullYear() ? year : ''}</div>
+            <div class="mini-cal-header"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+            <div class="mini-cal-grid">${days}</div>
+        </div>`);
+    }
+
+    document.getElementById('trends-year').innerHTML = `
+        <h2>📅 Year at a Glance</h2>
+        <p class="section-subtitle">Your cycle patterns across the last 12 months</p>
+        <div class="year-grid">${monthsHtml.join('')}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -696,6 +811,8 @@ function renderSettings() {
     document.getElementById('set-period-len').value = data.settings.periodLength;
     document.getElementById('set-fertility').checked = data.settings.showFertility;
     document.getElementById('set-autolock').value = data.settings.autoLock || 5;
+    document.getElementById('set-name').value = data.settings.displayName || '';
+    document.getElementById('set-theme').value = data.settings.theme || 'bloom';
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -908,8 +1025,16 @@ function init() {
         data.settings.cycleLength = parseInt(document.getElementById('set-cycle-len').value) || 28;
         data.settings.periodLength = parseInt(document.getElementById('set-period-len').value) || 5;
         data.settings.showFertility = document.getElementById('set-fertility').checked;
+        data.settings.displayName = document.getElementById('set-name').value.trim();
+        data.settings.theme = document.getElementById('set-theme').value;
+        document.body.setAttribute('data-theme', data.settings.theme);
         saveData();
         alert('Settings saved!');
+    });
+
+    // Theme change preview
+    document.getElementById('set-theme').addEventListener('change', (e) => {
+        document.body.setAttribute('data-theme', e.target.value);
     });
 
     // Auto-lock select
@@ -956,6 +1081,7 @@ function init() {
 function unlockUI() {
     document.getElementById('lock-screen').style.display = 'none';
     document.getElementById('app-main').style.display = '';
+    if (data.settings.theme) document.body.setAttribute('data-theme', data.settings.theme);
     resetAutoLock();
     renderDashboard();
 }
