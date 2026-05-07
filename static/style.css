@@ -1368,7 +1368,7 @@ input[type="range"]::-moz-range-track {
 .mood-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .mood-radio { display: none; }
 .mood-option { font-size: 28px; cursor: pointer; padding: 6px 10px; border-radius: 12px; border: 2px solid transparent; transition: all .2s; }
-.mood-radio:checked + .mood-option { border-color: var(--rose); background: var(--rose-light); transform: scale(1.15); }
+.mood-radio:checked + .mood-option, .mood-option.active { border-color: var(--rose); background: var(--rose-light); transform: scale(1.15); }
 .mood-option:hover { background: var(--rose-light); }
 .journal-timeline { display: flex; flex-direction: column; gap: 16px; }
 .journal-entry { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(100,50,60,0.06); border-left: 4px solid var(--rose-light); }
