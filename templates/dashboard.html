@@ -154,7 +154,7 @@
                 <span class="symptom-badge cat-{{.Category}}">{{.Category}}</span>
                 <span class="symptom-name">{{.Name}}</span>
                 <span class="severity-dots">
-                    {{range seq .Severity}}<span class="dot filled">●</span>{{end}}{{range seq (sub 5 .Severity)}}<span class="dot">○</span>{{end}}
+                    {{range seq .Severity}}<span class="dot filled"></span>{{end}}{{range seq (sub 5 .Severity)}}<span class="dot"></span>{{end}}
                 </span>
             </div>
             {{end}}
