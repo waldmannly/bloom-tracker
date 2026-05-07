@@ -1,3 +1,20 @@
+// ─── Fix date inputs to use client local date ──────────────────────────
+(function() {
+    var now = new Date();
+    var localToday = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+    document.querySelectorAll('input[type="date"]').forEach(function(input) {
+        // Only fix inputs that default to "today" (server-rendered)
+        if (input.value && input.getAttribute('max')) {
+            input.value = localToday;
+            input.setAttribute('max', localToday);
+        } else if (input.value && !input.getAttribute('data-start')) {
+            input.value = localToday;
+        }
+    });
+})();
+
 // ─── Nav Toggle ─────────────────────────────────────────────────────────
 function toggleNav() {
     document.getElementById('nav-links').classList.toggle('show');
