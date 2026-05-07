@@ -1,0 +1,52 @@
+Here are the release notes from v1 to v2.2.0:
+
+v2.2.0 — Full-Featured Local Mode
+Local-Only Mode (NEW)
+A complete, zero-server period tracker that runs entirely in your browser. Visit /local to use it.
+
+How it works:
+
+You create a passphrase on first use — this generates an AES-256-GCM encryption key via PBKDF2 (210,000 iterations)
+All your data (periods, symptoms, journal) is encrypted and stored in your browser's localStorage
+The server delivers the page once, then never sees your data — no API calls, no analytics, no cookies
+Works fully offline once loaded (installable as a PWA via "Add to Home Screen")
+Auto-locks after inactivity (configurable: 2/5/10/30 min)
+Export encrypted backups or plain JSON; import from server exports or encrypted backups
+Can switch to cloud mode anytime by exporting and importing into a server account
+Local mode features (same as server):
+
+Dashboard with cycle phase, predictions, wellness tips, encouragement
+Period logging with start/end tracking
+Symptom tracker (4 categories, severity, notes)
+Journal with mood picker
+Calendar with period/predicted/fertile/ovulation markers
+Trends: cycle length chart, period duration chart, symptom frequency, symptom×phase correlation, year-at-a-glance mini calendars, month-by-month activity
+Settings: cycle/period length, fertility toggle, color theme (Bloom/Ocean), display name, auto-lock timer
+v2.1.0 — Local Mode Launch
+Initial local-only encrypted tracker
+AES-256-GCM encryption with PBKDF2 key derivation
+Basic dashboard, period logging, symptoms, journal, calendar
+v2.0.1 — Mode-Switching Instructions
+Added instructions in settings for switching between server and local modes
+Setup guides on login and registration pages
+v2.0.0 — Security & Privacy Overhaul
+Service Worker: Offline-first caching, app installable as PWA
+Database encryption at rest: AES-256-GCM with configurable ENCRYPTION_KEY
+Encrypted backups: Password-protected backup/restore (client-downloadable .enc files)
+Auto-encrypted snapshots: Periodic encrypted DB snapshots for crash resilience
+Privacy-first README and landing page: Clear messaging about data handling
+Partner system: Invite partner via code, partner dashboard with phase tips
+Notification emails: Weekly summaries and phase-change alerts for partners
+Daily log: BBT, cervical mucus, energy, sleep, stress tracking
+Trends expansion: Year-at-a-glance, symptom×phase correlation, wellness over time, word cloud
+Import/export: CSV and JSON export, JSON import with merge support
+Docker support: docker-compose.yml and Dockerfile for self-hosting
+Multi-platform binaries: Linux (amd64/arm64/armv7), macOS (amd64/arm64), Windows (amd64/arm64)
+v1.0.0 — Initial Release
+Basic period tracking with cycle predictions
+Symptom logging
+Journal
+Calendar view
+User accounts with email/password auth
+SQLite database
+TL;DR for users: If you want privacy without trusting any server, use Local-Only Mode at /local. Your data never leaves your device. If you want cross-device sync or partner features, use a server account. You can switch between them anytime via export/import.
