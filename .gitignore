@@ -6,6 +6,10 @@
 *.dylib
 bloom
 bloom-linux
+bloom-linux-*
+bloom-darwin-*
+bloom-windows-*
+bloom-deploy
 
 # Database
 *.db
