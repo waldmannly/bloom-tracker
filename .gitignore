@@ -8,8 +8,10 @@ bloom
 bloom-linux
 bloom-linux-*
 bloom-darwin-*
+bloom-macos-*
 bloom-windows-*
 bloom-deploy
+period-tracker.exe
 
 # Database
 *.db
