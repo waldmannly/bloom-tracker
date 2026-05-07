@@ -112,7 +112,7 @@ function resetAutoLock() {
     autoLockTimer = setTimeout(lockVault, data.settings.autoLock * 60000);
 }
 
-['click', 'keydown', 'touchstart', 'scroll'].forEach(e =>
+['click', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(e =>
     document.addEventListener(e, resetAutoLock, { passive: true })
 );
 
@@ -120,8 +120,17 @@ function resetAutoLock() {
 // CYCLE CALCULATIONS (mirrors server-side cycle.go)
 // ═══════════════════════════════════════════════════════════════════
 
+function parseLocalDate(d) {
+    if (d instanceof Date) return d;
+    if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        const [y, m, day] = d.split('-').map(Number);
+        return new Date(y, m - 1, day);
+    }
+    return new Date(d);
+}
+
 function midnight(d) {
-    const t = new Date(d);
+    const t = parseLocalDate(d);
     t.setHours(0, 0, 0, 0);
     return t;
 }
@@ -131,18 +140,18 @@ function daysBetween(a, b) {
 }
 
 function formatDate(d) {
-    const dt = new Date(d);
+    const dt = parseLocalDate(d);
     return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatDateInput(d) {
-    const dt = new Date(d);
-    return dt.toISOString().split('T')[0];
+    const dt = parseLocalDate(d);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
 }
 
 function getLastPeriodStart() {
     if (!data || !data.periods.length) return null;
-    const sorted = [...data.periods].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+    const sorted = [...data.periods].sort((a, b) => parseLocalDate(b.startDate) - parseLocalDate(a.startDate));
     return sorted[0];
 }
 
@@ -157,7 +166,7 @@ function calculateCycleInfo() {
     const cycleLen = data.settings.cycleLength;
     const periodLen = data.settings.periodLength;
     const today = midnight(new Date());
-    const lastStart = midnight(new Date(last.startDate));
+    const lastStart = midnight(last.startDate);
 
     let daysSince = daysBetween(lastStart, today);
     let currentCycleStart = lastStart;
@@ -312,14 +321,14 @@ function renderDashboard() {
             </div>`).join('')}</div>` : '';
 
     // Recent symptoms on dashboard
-    const recentSyms = [...data.symptoms].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    const recentSyms = [...data.symptoms].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)).slice(0, 5);
     document.getElementById('dash-recent-symptoms').innerHTML = recentSyms.length ? `
         <h2>📝 Recent Symptoms</h2>
         <div class="symptom-list">${recentSyms.map(s => {
             const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
             const dots = '●'.repeat(s.severity) + '○'.repeat(5 - s.severity);
             return `<div class="symptom-row">
-                <span class="symptom-date">${new Date(s.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
+                <span class="symptom-date">${parseLocalDate(s.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
                 <span class="symptom-badge cat-${s.category}">${s.category}</span>
                 <span class="symptom-name">${syms.join(', ')}</span>
                 <span class="severity-dots">${dots}</span>
@@ -332,7 +341,7 @@ function generatePredictions(info) {
     const predictions = [];
     const lastPeriod = getLastPeriodStart();
     if (!lastPeriod) return [];
-    const baseStart = midnight(new Date(lastPeriod.startDate));
+    const baseStart = midnight(lastPeriod.startDate);
     for (let i = 1; i <= 3; i++) {
         const cycleStart = new Date(baseStart.getTime() + i * info.cycleLen * 86400000);
         const periodEnd = new Date(cycleStart.getTime() + (info.periodLen - 1) * 86400000);
@@ -356,7 +365,7 @@ function renderPeriods() {
     document.getElementById('period-active-banner').innerHTML = active ?
         `<div class="banner banner-period"><div class="banner-text"><span class="banner-icon">🩸</span> Active period started ${formatDate(active.startDate)}</div><button class="btn btn-sm btn-white" onclick="endPeriod('${active.id}')">Mark as Ended</button></div>` : '';
 
-    const sorted = [...data.periods].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+    const sorted = [...data.periods].sort((a, b) => parseLocalDate(b.startDate) - parseLocalDate(a.startDate));
     document.getElementById('period-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No periods logged yet.</p>' :
         sorted.map(p => `<div class="history-item">
             <div class="history-dates">
@@ -425,7 +434,7 @@ function renderSymptoms() {
     document.getElementById('sym-date').value = formatDateInput(new Date());
     renderSymptomPills();
 
-    const sorted = [...data.symptoms].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+    const sorted = [...data.symptoms].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)).slice(0, 20);
     document.getElementById('symptom-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No symptoms logged yet.</p>' :
         sorted.map(s => {
             const syms = s.symptoms || (s.symptom ? [s.symptom] : []);
@@ -450,7 +459,7 @@ let selectedMood = '😐';
 function renderJournal() {
     document.getElementById('jrn-date').value = formatDateInput(new Date());
 
-    const sorted = [...data.journal].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...data.journal].sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
     document.getElementById('journal-history').innerHTML = sorted.length === 0 ? '<p class="form-hint">No journal entries yet.</p>' :
         sorted.map(j => `<div class="journal-entry">
             <div class="journal-entry-header">
@@ -498,8 +507,8 @@ function renderCalendar() {
     const periodDates = new Set();
     data.periods.forEach(p => {
         if (!p.startDate) return;
-        const s = midnight(new Date(p.startDate));
-        const e = p.endDate ? midnight(new Date(p.endDate)) : s;
+        const s = midnight(p.startDate);
+        const e = p.endDate ? midnight(p.endDate) : s;
         const numDays = daysBetween(s, e);
         for (let i = 0; i <= numDays; i++) {
             periodDates.add(formatDateInput(new Date(s.getTime() + i * 86400000)));
@@ -514,18 +523,31 @@ function renderCalendar() {
     const fertileDates = new Set();
     const ovulationDates = new Set();
     if (info) {
-        // Generate predictions for display range
+        // Generate predictions for display range (forward and backward)
         const last = getLastPeriodStart();
         if (last) {
-            const start = midnight(new Date(last.startDate));
+            const start = midnight(last.startDate);
+            // Forward predictions
             for (let cycle = 0; cycle < 6; cycle++) {
                 const cycleStart = new Date(start.getTime() + cycle * info.cycleLen * 86400000);
-                // Predicted period
                 for (let d = 0; d < info.periodLen; d++) {
                     const pd = new Date(cycleStart.getTime() + d * 86400000);
                     if (!periodDates.has(formatDateInput(pd))) predictedDates.add(formatDateInput(pd));
                 }
-                // Ovulation & fertile
+                const ovDay = info.ovulationDay;
+                const ov = new Date(cycleStart.getTime() + (ovDay - 1) * 86400000);
+                ovulationDates.add(formatDateInput(ov));
+                for (let d = ovDay - 6; d <= ovDay; d++) {
+                    fertileDates.add(formatDateInput(new Date(cycleStart.getTime() + d * 86400000)));
+                }
+            }
+            // Backward predictions
+            for (let cycle = 1; cycle <= 12; cycle++) {
+                const cycleStart = new Date(start.getTime() - cycle * info.cycleLen * 86400000);
+                for (let d = 0; d < info.periodLen; d++) {
+                    const pd = new Date(cycleStart.getTime() + d * 86400000);
+                    if (!periodDates.has(formatDateInput(pd))) predictedDates.add(formatDateInput(pd));
+                }
                 const ovDay = info.ovulationDay;
                 const ov = new Date(cycleStart.getTime() + (ovDay - 1) * 86400000);
                 ovulationDates.add(formatDateInput(ov));
@@ -575,13 +597,13 @@ function renderTrends() {
     document.getElementById('trends-empty').style.display = 'none';
     document.getElementById('trends-content').style.display = '';
 
-    const sorted = [...data.periods].filter(p => p.startDate).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const sorted = [...data.periods].filter(p => p.startDate).sort((a, b) => parseLocalDate(a.startDate) - parseLocalDate(b.startDate));
     const cycles = [];
     for (let i = 1; i < sorted.length; i++) {
-        const len = daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i].startDate));
+        const len = daysBetween(parseLocalDate(sorted[i - 1].startDate), parseLocalDate(sorted[i].startDate));
         if (len <= 0 || len > 90) continue; // skip bad data
-        const pDays = sorted[i - 1].endDate ? daysBetween(new Date(sorted[i - 1].startDate), new Date(sorted[i - 1].endDate)) : null;
-        const month = new Date(sorted[i - 1].startDate).toLocaleDateString('en-US', { month: 'short' });
+        const pDays = sorted[i - 1].endDate ? daysBetween(parseLocalDate(sorted[i - 1].startDate), parseLocalDate(sorted[i - 1].endDate)) : null;
+        const month = parseLocalDate(sorted[i - 1].startDate).toLocaleDateString('en-US', { month: 'short' });
         cycles.push({ len, pDays, month });
     }
 
@@ -663,14 +685,14 @@ function renderTrends() {
     const monthData = {};
     data.periods.forEach(p => {
         if (!p.startDate) return;
-        const d = new Date(p.startDate);
+        const d = parseLocalDate(p.startDate);
         const key = `${d.getFullYear()}-${d.getMonth()}`;
         if (!monthData[key]) monthData[key] = { periods: 0, symptoms: 0, month: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear() };
         monthData[key].periods++;
     });
     data.symptoms.forEach(s => {
         if (!s.date) return;
-        const d = new Date(s.date);
+        const d = parseLocalDate(s.date);
         const key = `${d.getFullYear()}-${d.getMonth()}`;
         if (!monthData[key]) monthData[key] = { periods: 0, symptoms: 0, month: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear() };
         monthData[key].symptoms++;
@@ -707,10 +729,10 @@ function renderPhaseCorrelation(sortedPeriods, topSymptoms) {
     const phaseEmoji = { menstruation: '🌺', follicular: '🌱', ovulation: '🌸', luteal: '🌙' };
 
     function getPhaseForDate(dateStr) {
-        const date = midnight(new Date(dateStr));
+        const date = midnight(dateStr);
         // Find which cycle this date belongs to
         for (let i = sortedPeriods.length - 1; i >= 0; i--) {
-            const start = midnight(new Date(sortedPeriods[i].startDate));
+            const start = midnight(sortedPeriods[i].startDate);
             const diff = daysBetween(start, date);
             if (diff >= 0 && diff < cycleLen) {
                 const day = diff + 1;
@@ -761,8 +783,8 @@ function renderYearAtGlance() {
     const periodDates = new Set();
     data.periods.forEach(p => {
         if (!p.startDate) return;
-        const s = midnight(new Date(p.startDate));
-        const e = p.endDate ? midnight(new Date(p.endDate)) : s;
+        const s = midnight(p.startDate);
+        const e = p.endDate ? midnight(p.endDate) : s;
         const numDays = daysBetween(s, e);
         for (let i = 0; i <= Math.min(numDays, 15); i++) {
             periodDates.add(formatDateInput(new Date(s.getTime() + i * 86400000)));

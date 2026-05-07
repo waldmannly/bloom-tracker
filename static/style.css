@@ -158,7 +158,7 @@ img { max-width: 100%; }
     font-weight: 600;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: all .2s;
+    transition: background .2s, color .2s, border-color .2s, transform .2s, box-shadow .2s;
     text-decoration: none;
     line-height: 1.4;
 }
@@ -650,7 +650,7 @@ input:focus, textarea:focus, select:focus {
     font-size: 0.88rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all .2s;
+    transition: background .2s, color .2s, border-color .2s, box-shadow .2s;
     font-family: inherit;
     color: var(--text-light);
 }
@@ -987,7 +987,7 @@ input[type="range"]::-moz-range-track {
     box-shadow: var(--shadow);
     font-size: 0.95rem;
     cursor: pointer;
-    transition: all .2s;
+    transition: background .2s, transform .2s, box-shadow .2s;
 }
 
 .action-item:hover { transform: translateX(4px); }
@@ -1161,7 +1161,7 @@ input[type="range"]::-moz-range-track {
     border-radius: var(--radius-sm);
     padding: 0.85rem 0.5rem;
     text-align: center;
-    transition: all .2s;
+    transition: background .2s, box-shadow .2s;
 }
 
 .month-cell.has-data { background: var(--bg-card); box-shadow: var(--shadow); }
@@ -1374,7 +1374,7 @@ input[type="range"]::-moz-range-track {
 .journal-form-card { margin-bottom: 24px; }
 .mood-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .mood-radio { display: none; }
-.mood-option { font-size: 28px; cursor: pointer; padding: 6px 10px; border-radius: 12px; border: 2px solid transparent; transition: all .2s; }
+.mood-option { font-size: 28px; cursor: pointer; padding: 6px 10px; border-radius: 12px; border: 2px solid transparent; transition: background .2s, border-color .2s, transform .2s; }
 .mood-radio:checked + .mood-option, .mood-option.active { border-color: var(--rose); background: var(--rose-light); transform: scale(1.15); }
 .mood-option:hover { background: var(--rose-light); }
 .journal-timeline { display: flex; flex-direction: column; gap: 16px; }
@@ -1455,7 +1455,7 @@ details[open] .danger-trigger::before { content: "▾ "; }
 
 .mucus-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
 .mucus-option input { display: none; }
-.mucus-card { border: 2px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.mucus-card { border: 2px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; cursor: pointer; transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
 .mucus-card:hover { border-color: var(--rose-light); transform: translateY(-2px); }
 .mucus-option input:checked + .mucus-card { border-color: var(--rose); background: var(--menstruation-bg); box-shadow: 0 0 0 3px rgba(231,111,146,0.2); }
 .mucus-icon { font-size: 24px; display: block; margin-bottom: 4px; }
@@ -1491,7 +1491,7 @@ details[open] .danger-trigger::before { content: "▾ "; }
     border: 2px solid var(--border);
     background: var(--bg-card);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s;
     display: flex;
     flex-direction: column;
     align-items: center;
