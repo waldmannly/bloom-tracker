@@ -120,17 +120,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (document.getElementById('bloom-update-banner')) return;
                 var banner = document.createElement('div');
                 banner.id = 'bloom-update-banner';
-                banner.innerHTML = '<div class="pwa-banner pwa-update-banner">' +
-                    '<span>🌸 A new version of Bloom is available!</span>' +
-                    '<button id="bloom-update-btn" class="btn btn-sm btn-primary">Refresh</button>' +
-                    '<button id="bloom-update-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">Later</button>' +
+                banner.className = 'pwa-toast';
+                banner.innerHTML =
+                    '<div class="pwa-toast-inner pwa-toast-update">' +
+                        '<div class="pwa-toast-icon">' +
+                            '<div class="pwa-sparkle-ring"></div>' +
+                            '<span>✨</span>' +
+                        '</div>' +
+                        '<div class="pwa-toast-content">' +
+                            '<div class="pwa-toast-title">Fresh update ready</div>' +
+                            '<div class="pwa-toast-subtitle">Bloom just got better. Tap to refresh.</div>' +
+                        '</div>' +
+                        '<div class="pwa-toast-actions">' +
+                            '<button id="bloom-update-btn" class="pwa-toast-btn pwa-toast-btn-primary">Update</button>' +
+                            '<button id="bloom-update-dismiss" class="pwa-toast-btn pwa-toast-btn-ghost">Later</button>' +
+                        '</div>' +
                     '</div>';
                 document.body.appendChild(banner);
+                // Trigger entrance animation
+                requestAnimationFrame(function() { banner.classList.add('pwa-toast-visible'); });
                 document.getElementById('bloom-update-btn').addEventListener('click', function() {
+                    banner.querySelector('.pwa-toast-inner').classList.add('pwa-toast-loading');
                     worker.postMessage({ type: 'SKIP_WAITING' });
                 });
                 document.getElementById('bloom-update-dismiss').addEventListener('click', function() {
-                    banner.remove();
+                    banner.classList.remove('pwa-toast-visible');
+                    setTimeout(function() { banner.remove(); }, 400);
                 });
             }
 
@@ -162,57 +177,115 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ─── PWA: Install Prompt ────────────────────────────────────────────
     var deferredPrompt = null;
-    var installDismissed = sessionStorage.getItem('bloom-install-dismissed');
+    var installDismissed = localStorage.getItem('bloom-install-dismissed');
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        if (!installDismissed && !window.matchMedia('(display-mode: standalone)').matches) {
-            showInstallBanner();
+        if (!installDismissed && !isStandalone) {
+            // Delay slightly so page loads first
+            setTimeout(showInstallPrompt, 1500);
         }
     });
 
-    function showInstallBanner() {
-        if (document.getElementById('bloom-install-banner')) return;
-        var banner = document.createElement('div');
-        banner.id = 'bloom-install-banner';
-        banner.innerHTML = '<div class="pwa-banner pwa-install-banner">' +
-            '<span>🌸 Install Bloom for the best experience!</span>' +
-            '<button id="bloom-install-btn" class="btn btn-sm btn-primary">Install</button>' +
-            '<button id="bloom-install-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">Not now</button>' +
+    function showInstallPrompt() {
+        if (document.getElementById('bloom-install-prompt')) return;
+        var overlay = document.createElement('div');
+        overlay.id = 'bloom-install-prompt';
+        overlay.className = 'pwa-install-overlay';
+        overlay.innerHTML =
+            '<div class="pwa-install-card">' +
+                '<div class="pwa-install-glow"></div>' +
+                '<button class="pwa-install-close" id="bloom-install-close" aria-label="Close">&times;</button>' +
+                '<div class="pwa-install-hero">' +
+                    '<div class="pwa-install-icon-wrap">' +
+                        '<img src="/static/icons/icon-192.png" alt="Bloom" class="pwa-install-icon">' +
+                    '</div>' +
+                    '<h2 class="pwa-install-title">Get the Bloom App</h2>' +
+                    '<p class="pwa-install-desc">Install Bloom on your device for instant access, offline support, and a native app experience.</p>' +
+                '</div>' +
+                '<div class="pwa-install-features">' +
+                    '<div class="pwa-install-feature"><span class="pwa-feat-icon">⚡</span><span>Lightning fast</span></div>' +
+                    '<div class="pwa-install-feature"><span class="pwa-feat-icon">📴</span><span>Works offline</span></div>' +
+                    '<div class="pwa-install-feature"><span class="pwa-feat-icon">🔒</span><span>Private & secure</span></div>' +
+                '</div>' +
+                '<div class="pwa-install-actions">' +
+                    '<button id="bloom-install-accept" class="pwa-install-btn-main">Install App</button>' +
+                    '<button id="bloom-install-skip" class="pwa-install-btn-skip">Maybe later</button>' +
+                '</div>' +
             '</div>';
-        document.body.appendChild(banner);
-        document.getElementById('bloom-install-btn').addEventListener('click', function() {
-            banner.remove();
+        document.body.appendChild(overlay);
+        requestAnimationFrame(function() { overlay.classList.add('pwa-install-visible'); });
+
+        document.getElementById('bloom-install-accept').addEventListener('click', function() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(function() {
+                deferredPrompt.userChoice.then(function(choice) {
                     deferredPrompt = null;
+                    dismissInstall(overlay, choice.outcome === 'accepted');
                 });
             }
         });
-        document.getElementById('bloom-install-dismiss').addEventListener('click', function() {
-            banner.remove();
-            sessionStorage.setItem('bloom-install-dismissed', '1');
+        document.getElementById('bloom-install-skip').addEventListener('click', function() {
+            dismissInstall(overlay, false);
         });
+        document.getElementById('bloom-install-close').addEventListener('click', function() {
+            dismissInstall(overlay, false);
+        });
+        // Close on backdrop click
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) dismissInstall(overlay, false);
+        });
+    }
+
+    function dismissInstall(overlay, accepted) {
+        overlay.classList.remove('pwa-install-visible');
+        setTimeout(function() { overlay.remove(); }, 400);
+        if (!accepted) {
+            localStorage.setItem('bloom-install-dismissed', Date.now());
+        }
     }
 
     // iOS install hint (no beforeinstallprompt on Safari)
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    var isStandalone = window.navigator.standalone === true;
-    if (isIOS && !isStandalone && !sessionStorage.getItem('bloom-ios-dismissed')) {
+    if (isIOS && !isStandalone && !localStorage.getItem('bloom-ios-dismissed')) {
         setTimeout(function() {
-            var banner = document.createElement('div');
-            banner.id = 'bloom-ios-banner';
-            banner.innerHTML = '<div class="pwa-banner pwa-install-banner">' +
-                '<span>🌸 Install Bloom: tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong></span>' +
-                '<button id="bloom-ios-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">✕</button>' +
+            if (document.getElementById('bloom-install-prompt')) return;
+            var overlay = document.createElement('div');
+            overlay.id = 'bloom-ios-prompt';
+            overlay.className = 'pwa-install-overlay';
+            overlay.innerHTML =
+                '<div class="pwa-install-card">' +
+                    '<div class="pwa-install-glow"></div>' +
+                    '<button class="pwa-install-close" id="bloom-ios-close" aria-label="Close">&times;</button>' +
+                    '<div class="pwa-install-hero">' +
+                        '<div class="pwa-install-icon-wrap">' +
+                            '<img src="/static/icons/icon-192.png" alt="Bloom" class="pwa-install-icon">' +
+                        '</div>' +
+                        '<h2 class="pwa-install-title">Add Bloom to Home</h2>' +
+                        '<p class="pwa-install-desc">For the full app experience, add Bloom to your home screen.</p>' +
+                    '</div>' +
+                    '<div class="pwa-ios-steps">' +
+                        '<div class="pwa-ios-step"><span class="pwa-ios-num">1</span> Tap the <strong>Share</strong> button <span class="pwa-ios-share-icon">&#x2191;&#xFE0E;</span></div>' +
+                        '<div class="pwa-ios-step"><span class="pwa-ios-num">2</span> Scroll down and tap <strong>"Add to Home Screen"</strong></div>' +
+                        '<div class="pwa-ios-step"><span class="pwa-ios-num">3</span> Tap <strong>"Add"</strong> — that\'s it!</div>' +
+                    '</div>' +
+                    '<div class="pwa-install-actions">' +
+                        '<button id="bloom-ios-done" class="pwa-install-btn-main">Got it</button>' +
+                    '</div>' +
                 '</div>';
-            document.body.appendChild(banner);
-            document.getElementById('bloom-ios-dismiss').addEventListener('click', function() {
-                banner.remove();
-                sessionStorage.setItem('bloom-ios-dismissed', '1');
-            });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function() { overlay.classList.add('pwa-install-visible'); });
+
+            function closeIOS() {
+                overlay.classList.remove('pwa-install-visible');
+                setTimeout(function() { overlay.remove(); }, 400);
+                localStorage.setItem('bloom-ios-dismissed', Date.now());
+            }
+            document.getElementById('bloom-ios-done').addEventListener('click', closeIOS);
+            document.getElementById('bloom-ios-close').addEventListener('click', closeIOS);
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) closeIOS(); });
         }, 2000);
     }
 

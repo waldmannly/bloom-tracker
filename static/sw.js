@@ -1,7 +1,7 @@
 // ─── Bloom PWA Service Worker ─────────────────────────────────────────────
 // Increment this version to trigger update flow
-const SW_VERSION = '3.0.0';
-const CACHE_NAME = 'bloom-pwa-v3';
+const SW_VERSION = '3.1.0';
+const CACHE_NAME = 'bloom-pwa-v3.1';
 const APP_SHELL = [
     '/',
     '/local',
