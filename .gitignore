@@ -22,6 +22,12 @@ data/
 # Environment
 .env
 
+# Deploy scripts (contain server IPs/credentials)
+deploy.ps1
+deploy.sh
+deploy*.ps1
+deploy*.sh
+
 # IDE
 .vscode/
 .idea/
