@@ -2,19 +2,94 @@
   "name": "Bloom Period Tracker",
   "short_name": "Bloom",
   "description": "Ultra-private period tracker. Encrypted local storage. Works offline. No account needed.",
-  "start_url": "/local",
+  "id": "/bloom-tracker",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#FFF9F9",
   "theme_color": "#D4788C",
   "orientation": "portrait-primary",
   "categories": ["health", "lifestyle"],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='150'%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
+      "src": "/static/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Log Period",
+      "short_name": "Log",
+      "url": "/log-period",
+      "icons": [{"src": "/static/icons/icon-96.png", "sizes": "96x96"}]
+    },
+    {
+      "name": "Daily Log",
+      "short_name": "Daily",
+      "url": "/daily-log",
+      "icons": [{"src": "/static/icons/icon-96.png", "sizes": "96x96"}]
     }
   ]
 }

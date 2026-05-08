@@ -108,10 +108,112 @@ function updateSeverityDisplay(value) {
 
 // ─── Init ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+    // ─── PWA: Service Worker Registration + Update Detection ────────────
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function() {
-            // Service worker is optional; ignore registration failures.
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(registration) {
+            // Check for updates immediately and every 60 seconds
+            registration.update();
+            setInterval(function() { registration.update(); }, 60000);
+
+            // Detect new service worker waiting
+            function showUpdateBanner(worker) {
+                if (document.getElementById('bloom-update-banner')) return;
+                var banner = document.createElement('div');
+                banner.id = 'bloom-update-banner';
+                banner.innerHTML = '<div class="pwa-banner pwa-update-banner">' +
+                    '<span>🌸 A new version of Bloom is available!</span>' +
+                    '<button id="bloom-update-btn" class="btn btn-sm btn-primary">Refresh</button>' +
+                    '<button id="bloom-update-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">Later</button>' +
+                    '</div>';
+                document.body.appendChild(banner);
+                document.getElementById('bloom-update-btn').addEventListener('click', function() {
+                    worker.postMessage({ type: 'SKIP_WAITING' });
+                });
+                document.getElementById('bloom-update-dismiss').addEventListener('click', function() {
+                    banner.remove();
+                });
+            }
+
+            if (registration.waiting) {
+                showUpdateBanner(registration.waiting);
+            }
+
+            registration.addEventListener('updatefound', function() {
+                var newWorker = registration.installing;
+                newWorker.addEventListener('statechange', function() {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateBanner(newWorker);
+                    }
+                });
+            });
+
+            // Reload when new SW takes over
+            var refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+        }).catch(function(err) {
+            console.warn('SW registration failed:', err);
         });
+    }
+
+    // ─── PWA: Install Prompt ────────────────────────────────────────────
+    var deferredPrompt = null;
+    var installDismissed = sessionStorage.getItem('bloom-install-dismissed');
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (!installDismissed && !window.matchMedia('(display-mode: standalone)').matches) {
+            showInstallBanner();
+        }
+    });
+
+    function showInstallBanner() {
+        if (document.getElementById('bloom-install-banner')) return;
+        var banner = document.createElement('div');
+        banner.id = 'bloom-install-banner';
+        banner.innerHTML = '<div class="pwa-banner pwa-install-banner">' +
+            '<span>🌸 Install Bloom for the best experience!</span>' +
+            '<button id="bloom-install-btn" class="btn btn-sm btn-primary">Install</button>' +
+            '<button id="bloom-install-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">Not now</button>' +
+            '</div>';
+        document.body.appendChild(banner);
+        document.getElementById('bloom-install-btn').addEventListener('click', function() {
+            banner.remove();
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function() {
+                    deferredPrompt = null;
+                });
+            }
+        });
+        document.getElementById('bloom-install-dismiss').addEventListener('click', function() {
+            banner.remove();
+            sessionStorage.setItem('bloom-install-dismissed', '1');
+        });
+    }
+
+    // iOS install hint (no beforeinstallprompt on Safari)
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    var isStandalone = window.navigator.standalone === true;
+    if (isIOS && !isStandalone && !sessionStorage.getItem('bloom-ios-dismissed')) {
+        setTimeout(function() {
+            var banner = document.createElement('div');
+            banner.id = 'bloom-ios-banner';
+            banner.innerHTML = '<div class="pwa-banner pwa-install-banner">' +
+                '<span>🌸 Install Bloom: tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong></span>' +
+                '<button id="bloom-ios-dismiss" class="btn btn-sm" style="margin-left:8px;background:transparent;color:inherit;">✕</button>' +
+                '</div>';
+            document.body.appendChild(banner);
+            document.getElementById('bloom-ios-dismiss').addEventListener('click', function() {
+                banner.remove();
+                sessionStorage.setItem('bloom-ios-dismissed', '1');
+            });
+        }, 2000);
     }
 
     // Severity slider

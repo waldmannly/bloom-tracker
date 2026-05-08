@@ -1788,3 +1788,66 @@ details[open] .danger-trigger::before { content: "▾ "; }
     --luteal-light: #B8CED8;
     --luteal-bg: #EFF4F8;
 }
+
+/* ─── PWA Banners ──────────────────────────────────────────────────────── */
+.pwa-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    animation: pwa-slide-up 0.3s ease-out;
+}
+.pwa-install-banner {
+    background: linear-gradient(135deg, #FFF9F9 0%, #F2D1D9 100%);
+    color: #2D2D2D;
+    border-top: 2px solid var(--rose);
+}
+.pwa-update-banner {
+    background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+    color: #1B5E20;
+    border-top: 2px solid #4CAF50;
+}
+@keyframes pwa-slide-up {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@media (min-width: 600px) {
+    .pwa-banner {
+        bottom: 20px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        border-radius: 12px;
+        max-width: 480px;
+        width: calc(100% - 40px);
+    }
+    @keyframes pwa-slide-up {
+        from { transform: translateX(-50%) translateY(40px); opacity: 0; }
+        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .pwa-banner {
+        padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    }
+    body {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Standalone mode tweaks */
+@media (display-mode: standalone) {
+    .main-nav {
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+}

@@ -2,12 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Bloom — Local Mode</title>
+
+    <!-- PWA Core -->
     <meta name="theme-color" content="#D4788C">
+    <meta name="color-scheme" content="light">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="stylesheet" href="/static/style.css">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Bloom">
+
+    <!-- Apple PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Bloom">
+    <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/static/icons/icon-167.png">
+
+    <!-- MS/Windows -->
+    <meta name="msapplication-TileColor" content="#D4788C">
+    <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+
+    <!-- Standard Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16.png">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div id="local-app">
@@ -370,6 +393,7 @@
 </div>
 
 <script src="/static/local-mode.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>
 {{end}}
